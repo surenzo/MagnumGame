@@ -1,259 +1,338 @@
+#include <btBulletDynamicsCommon.h>
+#include <Corrade/Containers/GrowableArray.h>
+#include <Corrade/Containers/Optional.h>
+#include <Corrade/Containers/Pointer.h>
+#include <Magnum/Timeline.h>
+#include <Magnum/BulletIntegration/Integration.h>
+#include <Magnum/BulletIntegration/MotionState.h>
+#include <Magnum/BulletIntegration/DebugDraw.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
+#include <Magnum/GL/Mesh.h>
 #include <Magnum/GL/Renderer.h>
-#include <Magnum/Platform/GlfwApplication.h>
-#include <Magnum/Primitives/Cube.h>
-#include <Magnum/Shaders/Phong.h>
-#include <Magnum/Trade/MeshData.h>
+#include <Magnum/Math/Constants.h>
+#include <Magnum/Math/Color.h>
+#include <Magnum/Math/Time.h>
 #include <Magnum/MeshTools/Compile.h>
+#include <Magnum/MeshTools/Transform.h>
+#ifdef CORRADE_TARGET_EMSCRIPTEN
+#include <Magnum/Platform/EmscriptenApplication.h>
+#else
+#endif
+#include <Magnum/Primitives/Cube.h>
+#include <Magnum/Primitives/UVSphere.h>
 #include <Magnum/SceneGraph/Camera.h>
 #include <Magnum/SceneGraph/Drawable.h>
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include <Magnum/SceneGraph/Scene.h>
-#include <Magnum/SceneGraph/Object.h>
-#include <Magnum/GL/Mesh.h>
-#include <btBulletDynamicsCommon.h>
-#include <Magnum/BulletIntegration/Integration.h>
-#include <Magnum/BulletIntegration/MotionState.h>
-#include <Magnum/BulletIntegration/DebugDraw.h>
-#include <random>
+#include <Magnum/Shaders/PhongGL.h>
+#include <Magnum/Trade/MeshData.h>
 
-#include "Corrade/Containers/Pointer.h"
+#include "Magnum/Platform/GlfwApplication.h"
+
+
 
 using namespace Magnum;
 using namespace Math::Literals;
-typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
-typedef SceneGraph::Scene<SceneGraph::MatrixTransformation3D> Scene3D;
-class ColoredDrawable : public SceneGraph::Drawable3D {
-public:
-    explicit ColoredDrawable(Object3D& object, Shaders::Phong& shader, GL::Mesh& mesh, const Color3& color, SceneGraph::DrawableGroup3D& group) :
-        SceneGraph::Drawable3D{object, &group}, _shader(shader), _mesh(mesh), _color(color) {}
+namespace Magnum {
+    namespace Examples {
+        typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
+        typedef SceneGraph::Scene<SceneGraph::MatrixTransformation3D> Scene3D;
 
-    void draw(const Matrix4& transformationMatrix, SceneGraph::Camera3D& camera) override {
-        _shader.setLightPosition({-25.0f, 70.0f, 5.5f})
-        .setAmbientColor(0x222222_rgbf) // Set ambient color
-        .setDiffuseColor(_color)
-        .setSpecularColor(0xffffff_rgbf)
-        .setShininess(50.0f)
-               .setTransformationMatrix(transformationMatrix)
-               .setNormalMatrix(transformationMatrix.normalMatrix())
-               .setProjectionMatrix(camera.projectionMatrix());
-        _mesh.draw(_shader);
-    }
+        struct InstanceData {
+            Matrix4 transformationMatrix;
+            Matrix3x3 normalMatrix;
+            Color3 color;
+        };
 
-private:
-    Shaders::Phong& _shader;
-    GL::Mesh& _mesh;
-    Color3 _color;
-};
+        class BulletExample: public Platform::Application {
+        public:
+            explicit BulletExample(const Arguments& arguments);
 
-class RigidBody : public Object3D {
-public:
-    RigidBody(Object3D* parent, Float mass, btCollisionShape* bShape, btDynamicsWorld& bWorld)
-        : Object3D{parent}, _bWorld(bWorld) {
-        btVector3 bInertia(0.0f, 0.0f, 0.0f);
-        if(!Math::TypeTraits<Float>::equals(mass, 0.0f))
-            bShape->calculateLocalInertia(mass, bInertia);
+        private:
+            void drawEvent() override;
+            void viewportEvent(ViewportEvent& event) override;
+            void keyPressEvent(KeyEvent& event) override;
+            void pointerPressEvent(PointerEvent& event) override;
 
-        auto* motionState = new BulletIntegration::MotionState{*this};
-        _bRigidBody.emplace(btRigidBody::btRigidBodyConstructionInfo{
-            mass, &motionState->btMotionState(), bShape, bInertia});
-        _bRigidBody->forceActivationState(DISABLE_DEACTIVATION);
-        bWorld.addRigidBody(_bRigidBody.get());
-    }
+            GL::Mesh _box{NoCreate}, _sphere{NoCreate};
+            GL::Buffer _boxInstanceBuffer{NoCreate}, _sphereInstanceBuffer{NoCreate};
+            Shaders::PhongGL _shader{NoCreate};
+            BulletIntegration::DebugDraw _debugDraw{NoCreate};
+            Containers::Array<InstanceData> _boxInstanceData, _sphereInstanceData;
 
-    ~RigidBody() {
-        _bWorld.removeRigidBody(_bRigidBody.get());
-    }
-
-    btRigidBody& rigidBody() { return *_bRigidBody; }
-
-    void syncPose() {
-        _bRigidBody->setWorldTransform(btTransform(transformationMatrix()));
-    }
-
-private:
-    btDynamicsWorld& _bWorld;
-    Containers::Pointer<btRigidBody> _bRigidBody;
-};
-
-Color3 randomColor() {
-    static std::mt19937 gen{std::random_device{}()};
-    static std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-    return {dist(gen), dist(gen), dist(gen)};
-}
+            btDbvtBroadphase _bBroadphase;
+            btDefaultCollisionConfiguration _bCollisionConfig;
+            btCollisionDispatcher _bDispatcher{&_bCollisionConfig};
+            btSequentialImpulseConstraintSolver _bSolver;
 
 
-void createLargeCube(Object3D* parent, btDynamicsWorld& bWorld, SceneGraph::DrawableGroup3D& drawables, Shaders::Phong& shader, GL::Mesh& mesh) {
-    btBoxShape* smallBoxShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
-    for(int x = 0; x < 5; ++x) {
-        for(int y = 0; y < 5; ++y) {
-            for(int z = 0; z < 5; ++z) {
-                RigidBody* smallCube = new RigidBody{parent, 1.0f, smallBoxShape, bWorld};
-                smallCube->translate(Vector3(x * 1.2f, y * 1.1f, z * 1.2f)); // Slightly increase spacing to avoid overlap
-                smallCube->syncPose();
-                new ColoredDrawable{*smallCube, shader, mesh, randomColor(), drawables}; // Utilisez une couleur aléatoire
+            btDiscreteDynamicsWorld _bWorld{&_bDispatcher, &_bBroadphase, &_bSolver, &_bCollisionConfig};
+
+            Scene3D _scene;
+            SceneGraph::Camera3D* _camera;
+            SceneGraph::DrawableGroup3D _drawables;
+            Timeline _timeline;
+
+            Object3D *_cameraRig, *_cameraObject;
+
+            btBoxShape _bBoxShape{{0.5f, 0.5f, 0.5f}};
+            btSphereShape _bSphereShape{0.25f};
+            btBoxShape _bGroundShape{{4.0f, 0.5f, 4.0f}};
+
+            bool _drawCubes{true}, _drawDebug{true}, _shootBox{true};
+        };
+
+        class ColoredDrawable: public SceneGraph::Drawable3D {
+        public:
+            explicit ColoredDrawable(Object3D& object, Containers::Array<InstanceData>& instanceData, const Color3& color, const Matrix4& primitiveTransformation, SceneGraph::DrawableGroup3D& drawables): SceneGraph::Drawable3D{object, &drawables}, _instanceData(instanceData), _color{color}, _primitiveTransformation{primitiveTransformation} {}
+
+        private:
+            void draw(const Matrix4& transformation, SceneGraph::Camera3D&) override {
+                const Matrix4 t = transformation*_primitiveTransformation;
+                arrayAppend(_instanceData, InPlaceInit, t, t.normalMatrix(), _color);
             }
+
+            Containers::Array<InstanceData>& _instanceData;
+            Color3 _color;
+            Matrix4 _primitiveTransformation;
+        };
+
+        class RigidBody: public Object3D {
+        public:
+            RigidBody(Object3D* parent, Float mass, btCollisionShape* bShape, btDynamicsWorld& bWorld): Object3D{parent}, _bWorld(bWorld) {
+
+                btVector3 bInertia(0.0f, 0.0f, 0.0f);
+                if(!Math::TypeTraits<Float>::equals(mass, 0.0f))
+                    bShape->calculateLocalInertia(mass, bInertia);
+
+
+                auto* motionState = new BulletIntegration::MotionState{*this};
+                _bRigidBody.emplace(btRigidBody::btRigidBodyConstructionInfo{
+                    mass, &motionState->btMotionState(), bShape, bInertia});
+                _bRigidBody->forceActivationState(DISABLE_DEACTIVATION);
+                bWorld.addRigidBody(_bRigidBody.get());
+            }
+
+            ~RigidBody() {
+                _bWorld.removeRigidBody(_bRigidBody.get());
+            }
+
+            btRigidBody& rigidBody() { return *_bRigidBody; }
+
+
+            void syncPose() {
+                _bRigidBody->setWorldTransform(btTransform(transformationMatrix()));
+            }
+
+        private:
+            btDynamicsWorld& _bWorld;
+            Containers::Pointer<btRigidBody> _bRigidBody;
+        };
+
+        BulletExample::BulletExample(const Arguments& arguments): Platform::Application(arguments, NoCreate) {
+
+            {
+                const Vector2 dpiScaling = this->dpiScaling({});
+                Configuration conf;
+                conf.setTitle("Magnum Bullet Integration Example")
+                    .setWindowFlags(Configuration::WindowFlag::Resizable)
+                    .setSize(conf.size(), dpiScaling);
+                GLConfiguration glConf;
+                glConf.setSampleCount(dpiScaling.max() < 2.0f ? 8 : 2);
+                if(!tryCreate(conf, glConf))
+                    create(conf, glConf.setSampleCount(0));
+            }
+
+            /* Camera setup */
+            (*(_cameraRig = new Object3D{&_scene}))
+                .translate(Vector3::yAxis(3.0f))
+                .rotateY(40.0_degf);
+            (*(_cameraObject = new Object3D{_cameraRig}))
+                .translate(Vector3::zAxis(20.0f))
+                .rotateX(-25.0_degf);
+            (_camera = new SceneGraph::Camera3D(*_cameraObject))
+                ->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
+                .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 100.0f))
+                .setViewport(GL::defaultFramebuffer.viewport().size());
+
+
+            _shader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
+                .setFlags(Shaders::PhongGL::Flag::VertexColor|
+                          Shaders::PhongGL::Flag::InstancedTransformation)};
+            _shader.setAmbientColor(0x222222_rgbf)
+                   .setDiffuseColor(0x888888_rgbf)
+                   .setSpecularColor(0xffffff_rgbf)
+                   .setShininess(50.0f)
+                   .setLightPositions({{10.0f, 15.0f, 5.0f, 0.0f}});
+
+
+            _box = MeshTools::compile(Primitives::cubeSolid());
+            _sphere = MeshTools::compile(Primitives::uvSphereSolid(16, 32));
+            _boxInstanceBuffer = GL::Buffer{};
+            _sphereInstanceBuffer = GL::Buffer{};
+            _box.addVertexBufferInstanced(_boxInstanceBuffer, 1, 0,
+                Shaders::PhongGL::TransformationMatrix{},
+                Shaders::PhongGL::NormalMatrix{},
+                Shaders::PhongGL::Color3{});
+            _sphere.addVertexBufferInstanced(_sphereInstanceBuffer, 1, 0,
+                Shaders::PhongGL::TransformationMatrix{},
+                Shaders::PhongGL::NormalMatrix{},
+                Shaders::PhongGL::Color3{});
+
+
+            GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
+            GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
+            GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
+            GL::Renderer::setPolygonOffset(2.0f, 0.5f);
+
+            _debugDraw = BulletIntegration::DebugDraw{};
+            _debugDraw.setMode(BulletIntegration::DebugDraw::Mode::DrawWireframe);
+            _bWorld.setGravity({0.0f, -10.0f, 0.0f});
+            _bWorld.setDebugDrawer(&_debugDraw);
+
+            auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
+            new ColoredDrawable{*ground, _boxInstanceData, 0xffffff_rgbf,
+                Matrix4::scaling({4.0f, 0.5f, 4.0f}), _drawables};
+
+
+            Deg hue = 42.0_degf;
+            for(Int i = 0; i != 5; ++i) {
+                for(Int j = 0; j != 5; ++j) {
+                    for(Int k = 0; k != 5; ++k) {
+                        auto* o = new RigidBody{&_scene, 1.0f, &_bBoxShape, _bWorld};
+                        o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+                        o->syncPose();
+                        new ColoredDrawable{*o, _boxInstanceData,
+                            Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}),
+                            Matrix4::scaling(Vector3{0.5f}), _drawables};
+                    }
+                }
+            }
+
+
+#ifndef CORRADE_TARGET_EMSCRIPTEN
+            setSwapInterval(1);
+            setMinimalLoopPeriod(16.0_msec);
+#endif
+            _timeline.start();
+        }
+
+        void BulletExample::viewportEvent(ViewportEvent& event) {
+            GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
+        }
+
+        void BulletExample::drawEvent() {
+            GL::defaultFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
+
+
+            for(Object3D* obj = _scene.children().first(); obj; )
+            {
+                Object3D* next = obj->nextSibling();
+                if(obj->transformation().translation().dot() > 100*100)
+                    delete obj;
+
+                obj = next;
+            }
+
+
+            _bWorld.stepSimulation(_timeline.previousFrameDuration(), 5);
+
+            if(_drawCubes) {
+
+                arrayResize(_boxInstanceData, 0);
+                arrayResize(_sphereInstanceData, 0);
+                _camera->draw(_drawables);
+
+                _shader.setProjectionMatrix(_camera->projectionMatrix());
+
+
+                _boxInstanceBuffer.setData(_boxInstanceData, GL::BufferUsage::DynamicDraw);
+                _box.setInstanceCount(_boxInstanceData.size());
+                _shader.draw(_box);
+
+                _sphereInstanceBuffer.setData(_sphereInstanceData, GL::BufferUsage::DynamicDraw);
+                _sphere.setInstanceCount(_sphereInstanceData.size());
+                _shader.draw(_sphere);
+            }
+
+
+            if(_drawDebug) {
+                if(_drawCubes)
+                    GL::Renderer::setDepthFunction(GL::Renderer::DepthFunction::LessOrEqual);
+
+                _debugDraw.setTransformationProjectionMatrix(
+                    _camera->projectionMatrix()*_camera->cameraMatrix());
+                _bWorld.debugDrawWorld();
+
+                if(_drawCubes)
+                    GL::Renderer::setDepthFunction(GL::Renderer::DepthFunction::Less);
+            }
+
+            swapBuffers();
+            _timeline.nextFrame();
+            redraw();
+        }
+
+        void BulletExample::keyPressEvent(KeyEvent& event) {
+
+            if(event.key() == Key::Down) {
+                _cameraObject->rotateX(5.0_degf);
+            } else if(event.key() == Key::Up) {
+                _cameraObject->rotateX(-5.0_degf);
+            } else if(event.key() == Key::Left) {
+                _cameraRig->rotateY(-5.0_degf);
+            } else if(event.key() == Key::Right) {
+                _cameraRig->rotateY(5.0_degf);
+
+                /* Toggling draw modes */
+            } else if(event.key() == Key::D) {
+                if(_drawCubes && _drawDebug) {
+                    _drawDebug = false;
+                } else if(_drawCubes && !_drawDebug) {
+                    _drawCubes = false;
+                    _drawDebug = true;
+                } else if(!_drawCubes && _drawDebug) {
+                    _drawCubes = true;
+                    _drawDebug = true;
+                }
+
+                /* What to shoot */
+            } else if(event.key() == Key::S) {
+                _shootBox ^= true;
+            } else return;
+
+            event.setAccepted();
+        }
+
+        void BulletExample::pointerPressEvent(PointerEvent& event) {
+
+            if(!event.isPrimary() || !(event.pointer() & Pointer::MouseLeft))
+                return;
+
+
+            const Vector2 position = event.position() * Vector2{framebufferSize()} / Vector2{windowSize()};
+            const Vector2 clickPoint = Vector2::yScale(-1.0f) * (position / Vector2{framebufferSize()} - Vector2{0.5f}) * _camera->projectionSize();
+            const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
+
+            auto* object = new RigidBody{
+                &_scene,
+                _shootBox ? 1.0f : 5.0f,
+                _shootBox ? static_cast<btCollisionShape*>(&_bBoxShape) : &_bSphereShape,
+                _bWorld};
+            object->translate(_cameraObject->absoluteTransformation().translation());
+            object->syncPose();
+
+            /* Create either a box or a sphere */
+            new ColoredDrawable{*object,
+                _shootBox ? _boxInstanceData : _sphereInstanceData,
+                _shootBox ? 0x880000_rgbf : 0x220000_rgbf,
+                Matrix4::scaling(Vector3{_shootBox ? 0.5f : 0.25f}), _drawables};
+
+            /* Give it an initial velocity */
+            object->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
+
+            event.setAccepted();
         }
     }
 }
-
-void shootCube(Object3D* parent, btDynamicsWorld& bWorld, SceneGraph::DrawableGroup3D& drawables, Shaders::Phong& shader, GL::Mesh& mesh, const Vector3& position, const Vector3& direction) {
-    btBoxShape* smallBoxShape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f));
-    RigidBody* smallCube = new RigidBody{parent, 2.0f, smallBoxShape, bWorld};
-    smallCube->translate(position);
-    smallCube->syncPose();
-    new ColoredDrawable{*smallCube, shader, mesh, 0xff0000_rgbf, drawables};
-
-    btVector3 velocity(direction.x(), direction.y(), direction.z());
-    velocity.normalize();
-    velocity *= 60.0f; // Set the speed of the cube
-    smallCube->rigidBody().setLinearVelocity(velocity);
-}
-
-void shootSphere(Object3D* parent, btDynamicsWorld& bWorld, SceneGraph::DrawableGroup3D& drawables, Shaders::Phong& shader, GL::Mesh& mesh, const Vector3& position, const Vector3& direction) {
-    btSphereShape* sphereShape = new btSphereShape(0.5f); // Create a sphere shape with radius 0.5
-    RigidBody* sphere = new RigidBody{parent, 2.0f, sphereShape, bWorld};
-    sphere->translate(position);
-    sphere->syncPose();
-    new ColoredDrawable{*sphere, shader, mesh, 0xff0000_rgbf, drawables};
-
-    btVector3 velocity(direction.x(), direction.y(), direction.z());
-    velocity.normalize();
-    velocity *= 60.0f; // Set the speed of the sphere
-    sphere->rigidBody().setLinearVelocity(velocity);
-}
-
-class MagnumBootstrap : public Platform::Application {
-public:
-    explicit MagnumBootstrap(const Arguments& arguments);
-
-private:
-    void drawEvent() override;
-    void keyPressEvent(KeyEvent& event) override;
-    void mousePressEvent(MouseEvent& event) override;
-
-    Scene3D _scene;
-    SceneGraph::DrawableGroup3D _drawables;
-    RigidBody* _cube;
-    RigidBody* _groundBody;
-    Object3D *_cameraRig, *_cameraObject;
-    Object3D _ground;
-
-    SceneGraph::Camera3D* _camera;
-    Shaders::Phong _shader;
-    GL::Mesh _mesh, _groundMesh;
-    btDiscreteDynamicsWorld* _bWorld;
-    btDefaultCollisionConfiguration* _collisionConfig;
-    btCollisionDispatcher* _dispatcher;
-    btDbvtBroadphase* _broadphase;
-    btSequentialImpulseConstraintSolver* _solver;
-    btBoxShape _bBoxShape;
-    btBoxShape _groundShape;
-};
-
-MagnumBootstrap::MagnumBootstrap(const Arguments& arguments) :
-    Platform::Application{arguments, Configuration{}.setTitle("Magnum Bootstrap")},
-    _collisionConfig{new btDefaultCollisionConfiguration()},
-    _dispatcher{new btCollisionDispatcher(_collisionConfig)},
-    _broadphase{new btDbvtBroadphase()},
-    _solver{new btSequentialImpulseConstraintSolver()},
-    _bBoxShape{btVector3(0.5f, 0.5f, 0.5f)},
-    _groundShape{btVector3(20.0f, 0.05f, 20.0f)}{
-
-    _bWorld = new btDiscreteDynamicsWorld(_dispatcher, _broadphase, _solver, _collisionConfig);
-
-    _mesh = MeshTools::compile(Primitives::cubeSolid());
-    _groundMesh = MeshTools::compile(Primitives::cubeSolid());
-
-    _groundBody = new RigidBody{&_scene, 0.0f, &_groundShape, *_bWorld}; // Ground with mass 0
-    _groundBody->scale(Vector3(10.0f, 0.1f, 10.0f)); // Scale the ground to be larger and flat
-    new ColoredDrawable{*_groundBody, _shader, _groundMesh, 0xffffff_rgbf, _drawables};
-    createLargeCube(&_scene, *_bWorld, _drawables, _shader, _mesh);
-    /* Camera setup */
-    (*(_cameraRig = new Object3D{&_scene}))
-        .translate(Vector3::yAxis(3.0f))
-        .rotateY(40.0_degf);
-    (*(_cameraObject = new Object3D{_cameraRig}))
-        .translate(Vector3::zAxis(50.0f))
-        .rotateX(-25.0_degf);
-    (_camera = new SceneGraph::Camera3D(*_cameraObject))
-        ->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
-        .setViewport(GL::defaultFramebuffer.viewport().size());
-
-    Vector2i size = windowSize();
-    float aspectRatio = float(size.x()) / float(size.y());
-    _camera->setProjectionMatrix(Matrix4::perspectiveProjection(
-        35.0_degf, aspectRatio, 1.0f, 1000.0f));
-}
-
-
-void MagnumBootstrap::drawEvent() {
-    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
-
-    _bWorld->stepSimulation(1.0f / 120.0f); // Step the physics simulation
-
-    _camera->draw(_drawables);
-
-    swapBuffers();
-    redraw();
-}
-
-/*void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
-
-    if(event.key() == Key::Down) {
-        _cameraObject->rotateX(5.0_degf);
-    } else if(event.key() == Key::Up) {
-        _cameraObject->rotateX(-5.0_degf);
-    } else if(event.key() == Key::Left) {
-        _cameraRig->rotateY(-5.0_degf);
-    } else if(event.key() == Key::Right) {
-        _cameraRig->rotateY(5.0_degf);
-    }
-}*/
-
-void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
-    const float moveSpeed = 0.5f;
-    Math::Deg<float> rotateSpeed = 5.0_degf;
-
-    if(event.key() == Key::W) {
-        _cameraObject->translateLocal(Vector3::zAxis(-moveSpeed));
-    } else if(event.key() == Key::S) {
-        _cameraObject->translateLocal(Vector3::zAxis(moveSpeed));
-    } else if(event.key() == Key::A) {
-        _cameraObject->translateLocal(Vector3::xAxis(-moveSpeed));
-    } else if(event.key() == Key::D) {
-        _cameraObject->translateLocal(Vector3::xAxis(moveSpeed));
-    } else if(event.key() == Key::Q) {
-        _cameraObject->translateLocal(Vector3::yAxis(-moveSpeed));
-    } else if(event.key() == Key::E) {
-        _cameraObject->translateLocal(Vector3::yAxis(moveSpeed));
-    } else if(event.key() == Key::Down) {
-        _cameraObject->rotateX(rotateSpeed);
-    } else if(event.key() == Key::Up) {
-        _cameraObject->rotateX(-rotateSpeed);
-    } else if(event.key() == Key::Left) {
-        _cameraRig->rotateY(-rotateSpeed);
-    } else if(event.key() == Key::Right) {
-        _cameraRig->rotateY(rotateSpeed);
-    }
-}
-
-void MagnumBootstrap::mousePressEvent(MouseEvent& event) {
-    if(event.button() == MouseEvent::Button::Left) {
-        Vector2 position = Vector2{event.position()} * Vector2{Vector2{framebufferSize()}} / Vector2{Vector2{windowSize()}};
-        Vector2 clickPoint = Vector2::yScale(-1.0f) * (position / Vector2{Vector2{framebufferSize()}} - Vector2{0.5f}) * _camera->projectionSize();
-        Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
-
-        Vector3 cameraPosition = _cameraObject->absoluteTransformation().translation();
-        shootCube(&_scene, *_bWorld, _drawables, _shader, _mesh, cameraPosition, direction);
-    }
-    if(event.button() == MouseEvent::Button::Right) {
-        Vector2 position = Vector2{event.position()} * Vector2{Vector2{framebufferSize()}} / Vector2{Vector2{windowSize()}};
-        Vector2 clickPoint = Vector2::yScale(-1.0f) * (position / Vector2{Vector2{framebufferSize()}} - Vector2{0.5f}) * _camera->projectionSize();
-        Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
-
-        Vector3 cameraPosition = _cameraObject->absoluteTransformation().translation();
-        shootSphere(&_scene, *_bWorld, _drawables, _shader, _mesh, cameraPosition, direction);
-    }
-}
-MAGNUM_APPLICATION_MAIN(MagnumBootstrap)
+MAGNUM_APPLICATION_MAIN(Magnum::Examples::BulletExample)
