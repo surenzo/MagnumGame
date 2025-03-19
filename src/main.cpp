@@ -30,8 +30,10 @@
 #include "Magnum/Platform/GlfwApplication.h"
 
 
-
-
+#include <fstream>
+#include <Corrade/Utility/Directory.h>
+#include <Magnum/ImGuiIntegration/Context.hpp>
+#include <imgui.h>
 
 using namespace Magnum;
 using namespace Math::Literals;
@@ -56,6 +58,9 @@ namespace Magnum {
             void keyPressEvent(KeyEvent& event) override;
             void pointerPressEvent(PointerEvent& event) override;
 
+
+            void saveScene(const std::string& filename);
+            void loadScene(const std::string& filename);
             GL::Mesh _box{NoCreate}, _sphere{NoCreate};
             GL::Buffer _boxInstanceBuffer{NoCreate}, _sphereInstanceBuffer{NoCreate};
             Shaders::PhongGL _shader{NoCreate};
@@ -82,6 +87,7 @@ namespace Magnum {
             btBoxShape _bGroundShape{{4.0f, 0.5f, 4.0f}};
 
             bool _drawCubes{true}, _drawDebug{true}, _shootBox{true};
+            ImGuiIntegration::Context _imgui{NoCreate};
         };
 
         class ColoredDrawable: public SceneGraph::Drawable3D {
@@ -134,6 +140,24 @@ namespace Magnum {
         MagnumBootstrap::MagnumBootstrap(const Arguments& arguments): Platform::Application(arguments, NoCreate) {
 
             {
+                /*// Create ImGui context
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    // Initialize ImGuiIntegration context
+    _imgui = ImGuiIntegration::Context(Vector2{windowSize()}/dpiScaling(), windowSize(), framebufferSize());
+
+    // Create the window
+    const Vector2 dpiScaling = this->dpiScaling({});
+    Configuration conf;
+    conf.setTitle("Magnum Bullet Integration Example")
+        .setWindowFlags(Configuration::WindowFlag::Resizable)
+        .setSize(conf.size(), dpiScaling);
+    GLConfiguration glConf;
+    glConf.setSampleCount(dpiScaling.max() < 2.0f ? 8 : 2);
+    if(!tryCreate(conf, glConf))
+        create(conf, glConf.setSampleCount(0));
+*/
                 const Vector2 dpiScaling = this->dpiScaling({});
                 Configuration conf;
                 conf.setTitle("Magnum Bullet Integration Example")
@@ -218,15 +242,37 @@ namespace Magnum {
 #endif
             _timeline.start();
         }
-
         void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
             GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
+            _imgui.relayout(Vector2{event.windowSize()}/event.dpiScaling(), event.windowSize(), event.framebufferSize());
         }
 
         void MagnumBootstrap::drawEvent() {
             GL::defaultFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
 
+            /*// Start ImGui frame
+    _imgui.newFrame();
 
+    // ImGui interface for placing cubes
+    ImGui::Begin("Cube Editor");
+    static Vector3 cubePosition{0.0f, 0.0f, 0.0f};
+    ImGui::InputFloat3("Position", cubePosition.data());
+    if(ImGui::Button("Add Cube")) {
+        auto* cube = new RigidBody{&_scene, 1.0f, &_bBoxShape, _bWorld};
+        cube->translate(cubePosition);
+        cube->syncPose();
+        new ColoredDrawable{*cube, _boxInstanceData, 0x880000_rgbf, Matrix4::scaling(Vector3{0.5f}), _drawables};
+    }
+    if(ImGui::Button("Save Scene")) {
+        saveScene("scene.txt");
+    }
+    if(ImGui::Button("Load Scene")) {
+        loadScene("scene.txt");
+    }
+    ImGui::End();
+
+    // Render ImGui
+    _imgui.drawFrame();*/
             for(Object3D* obj = _scene.children().first(); obj; )
             {
                 Object3D* next = obj->nextSibling();
@@ -306,11 +352,35 @@ namespace Magnum {
                     _drawCubes = true;
                     _drawDebug = true;
                 }
-            } else if(event.key() == Key::S) {
+            } else if(event.key() == Key::P) {
                 _shootBox ^= true;
             } else return;
 
             event.setAccepted();
+        }
+
+        void MagnumBootstrap::saveScene(const std::string& filename) {
+            std::ofstream file{filename};
+            for(Object3D* obj = _scene.children().first(); obj; obj = obj->nextSibling()) {
+                const Vector3& pos = obj->transformation().translation();
+                file << pos.x() << " " << pos.y() << " " << pos.z() << "\n";
+            }
+        }
+
+        void MagnumBootstrap::loadScene(const std::string& filename) {
+            std::ifstream file{filename};
+            if(!file) return;
+
+            _scene.children().clear(); // Spécifiez le type pour appeler la bonne méthode clear
+            arrayResize(_boxInstanceData, 0);
+
+            Vector3 pos;
+            while(file >> pos.x() >> pos.y() >> pos.z()) {
+                auto* cube = new RigidBody{&_scene, 1.0f, &_bBoxShape, _bWorld};
+                cube->translate(pos);
+                cube->syncPose();
+                new ColoredDrawable{*cube, _boxInstanceData, 0x880000_rgbf, Matrix4::scaling(Vector3{0.5f}), _drawables};
+            }
         }
 
         void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
