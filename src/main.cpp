@@ -31,6 +31,8 @@
 
 
 
+
+
 using namespace Magnum;
 using namespace Math::Literals;
 namespace Magnum {
@@ -44,9 +46,9 @@ namespace Magnum {
             Color3 color;
         };
 
-        class BulletExample: public Platform::Application {
+        class MagnumBootstrap: public Platform::Application {
         public:
-            explicit BulletExample(const Arguments& arguments);
+            explicit MagnumBootstrap(const Arguments& arguments);
 
         private:
             void drawEvent() override;
@@ -129,7 +131,7 @@ namespace Magnum {
             Containers::Pointer<btRigidBody> _bRigidBody;
         };
 
-        BulletExample::BulletExample(const Arguments& arguments): Platform::Application(arguments, NoCreate) {
+        MagnumBootstrap::MagnumBootstrap(const Arguments& arguments): Platform::Application(arguments, NoCreate) {
 
             {
                 const Vector2 dpiScaling = this->dpiScaling({});
@@ -217,11 +219,11 @@ namespace Magnum {
             _timeline.start();
         }
 
-        void BulletExample::viewportEvent(ViewportEvent& event) {
+        void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
             GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
         }
 
-        void BulletExample::drawEvent() {
+        void MagnumBootstrap::drawEvent() {
             GL::defaultFramebuffer.clear(GL::FramebufferClear::Color|GL::FramebufferClear::Depth);
 
 
@@ -273,9 +275,20 @@ namespace Magnum {
             redraw();
         }
 
-        void BulletExample::keyPressEvent(KeyEvent& event) {
-
-            if(event.key() == Key::Down) {
+        void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
+            if(event.key() == Key::W) {
+                _cameraObject->translateLocal(Vector3::zAxis(-0.1f));
+            } else if(event.key() == Key::S) {
+                _cameraObject->translateLocal(Vector3::zAxis(0.1f));
+            } else if(event.key() == Key::A) {
+                _cameraObject->translateLocal(Vector3::xAxis(-0.1f));
+            } else if(event.key() == Key::D) {
+                _cameraObject->translateLocal(Vector3::xAxis(0.1f));
+            } else if(event.key() == Key::Q) {
+                _cameraObject->translateLocal(Vector3::yAxis(0.1f));
+            } else if(event.key() == Key::E) {
+                _cameraObject->translateLocal(Vector3::yAxis(-0.1f));
+            } else if(event.key() == Key::Down) {
                 _cameraObject->rotateX(5.0_degf);
             } else if(event.key() == Key::Up) {
                 _cameraObject->rotateX(-5.0_degf);
@@ -283,9 +296,7 @@ namespace Magnum {
                 _cameraRig->rotateY(-5.0_degf);
             } else if(event.key() == Key::Right) {
                 _cameraRig->rotateY(5.0_degf);
-
-                /* Toggling draw modes */
-            } else if(event.key() == Key::D) {
+            } else if(event.key() == Key::C) {
                 if(_drawCubes && _drawDebug) {
                     _drawDebug = false;
                 } else if(_drawCubes && !_drawDebug) {
@@ -295,8 +306,6 @@ namespace Magnum {
                     _drawCubes = true;
                     _drawDebug = true;
                 }
-
-                /* What to shoot */
             } else if(event.key() == Key::S) {
                 _shootBox ^= true;
             } else return;
@@ -304,7 +313,7 @@ namespace Magnum {
             event.setAccepted();
         }
 
-        void BulletExample::pointerPressEvent(PointerEvent& event) {
+        void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
 
             if(!event.isPrimary() || !(event.pointer() & Pointer::MouseLeft))
                 return;
@@ -335,4 +344,4 @@ namespace Magnum {
         }
     }
 }
-MAGNUM_APPLICATION_MAIN(Magnum::Examples::BulletExample)
+MAGNUM_APPLICATION_MAIN(Magnum::Examples::MagnumBootstrap)
