@@ -1,16 +1,11 @@
-//
-// Created by super on 23/04/2025.
-//
-
-#ifndef RENDERINGSYSTEM_H
-#define RENDERINGSYSTEM_H
-
-
+#pragma once
 
 class RenderingSystem {
+public:
+    RenderingSystem();
+    ~RenderingSystem();
+    void render();
 
+private:
+    // Add rendering-related members here
 };
-
-
-
-#endif //RENDERINGSYSTEM_H

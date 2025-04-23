@@ -1,72 +1,91 @@
 #include "PhysicsSystem.hpp"
 #include "MotionState.hpp"
 
-PhysicsSystem::PhysicsSystem(entt::registry& reg) : registry(reg) {
-    collisionConfig = new btDefaultCollisionConfiguration();
-    dispatcher = new btCollisionDispatcher(collisionConfig);
-    broadphase = new btDbvtBroadphase();
-    solver = new btSequentialImpulseConstraintSolver();
-    dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, broadphase, solver, collisionConfig);
-    dynamicsWorld->setGravity(btVector3(0, -9.81f, 0));
+PhysicsSystem::PhysicsSystem()  {
+    auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
 }
 
 PhysicsSystem::~PhysicsSystem() {
-    for (auto& [entity, body] : entityToBody) {
-        dynamicsWorld->removeRigidBody(body);
-        delete body->getMotionState();
-        delete body->getCollisionShape();
-        delete body;
+
+}
+// TODO : add position and rotation to the rigid body
+RigidBody* PhysicsSystem::addRigidBody(float mass, bool isBox) {
+    btCollisionShape* shape;
+    if(isBox) {
+      //TODO
+      // cast btboxshape to btcollisionshape en
+        shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
+    } else {
+        shape = new btSphereShape(0.25f); // sphere taille 1
     }
-    delete dynamicsWorld;
-    delete solver;
-    delete broadphase;
-    delete dispatcher;
-    delete collisionConfig;
+    auto* o = new RigidBody{&_scene, 1.0f, shape, _bWorld};
+
+
+    // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+
+    o->syncPose();
+    return o;
+
+// TODO : je sais pas ?
+
+//    auto& obj = registry.get<Objet3D>(entity);
+//
+//    btCollisionShape* shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
+//
+//    btVector3 localInertia(0, 0, 0);
+//    if(mass > 0.0f)
+//        shape->calculateLocalInertia(mass, localInertia);
+//
+//    auto* motionState = new MotionStateWrapper(&obj);
+//
+//    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, localInertia);
+//    btRigidBody* body = new btRigidBody(rbInfo);
+//
+//    dynamicsWorld->addRigidBody(body);
+//    entityToBody[entity] = body;
 }
 
-void PhysicsSystem::addRigidBody(entt::entity entity, float mass, bool isBox) {
-    auto& obj = registry.get<Objet3D>(entity);
+RigidBody* PhysicsSystem::addGround(){
+    auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
+    return ground;
+  }
 
-    btCollisionShape* shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
+void PhysicsSystem::update(float dt){
 
-    btVector3 localInertia(0, 0, 0);
-    if(mass > 0.0f)
-        shape->calculateLocalInertia(mass, localInertia);
-
-    auto* motionState = new MotionStateWrapper(&obj);
-
-    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, localInertia);
-    btRigidBody* body = new btRigidBody(rbInfo);
-
-    dynamicsWorld->addRigidBody(body);
-    entityToBody[entity] = body;
-}
-
-void PhysicsSystem::stepSimulation(float deltaTime) {
-    dynamicsWorld->stepSimulation(deltaTime);
-}
-
-void PhysicsSystem::syncTransformsToPhysics() {
-    for (auto& [entity, body] : entityToBody) {
-        if (registry.valid(entity)) {
-            auto& obj = registry.get<Objet3D>(entity);
-            btTransform transform;
-            transform.setOrigin(btVector3(obj.position.x(), obj.position.y(), obj.position.z()));
-            transform.setRotation(btQuaternion(obj.rotation.vector().x(), obj.rotation.vector().y(), obj.rotation.vector().z(), obj.rotation.scalar()));
-            body->setWorldTransform(transform);
-        }
+    for(Object3D* obj = _scene.children().first(); obj; ) {
+        Object3D* next = obj->nextSibling();
+        if(obj->transformation().translation().dot() > 100*100)
+            delete obj;
+        obj = next;
     }
-}
 
-void PhysicsSystem::syncPhysicsToTransforms() {
-    for (auto& [entity, body] : entityToBody) {
-        if (registry.valid(entity)) {
-            btTransform transform = body->getWorldTransform();
-            auto& obj = registry.get<Objet3D>(entity);
-            const btVector3& pos = transform.getOrigin();
-            const btQuaternion& rot = transform.getRotation();
-            obj.position = {pos.getX(), pos.getY(), pos.getZ()};
-            obj.rotation = Magnum::Quaternion({rot.getX(), rot.getY(), rot.getZ()});
-        }
-    }
-}
+    _bWorld.stepSimulation(dt, 5);
+  }
+
+
+
+// TODO : add all this for entt
+//void PhysicsSystem::syncTransformsToPhysics() {
+//    for (auto& [entity, body] : entityToBody) {
+//        if (registry.valid(entity)) {
+//            auto& obj = registry.get<Objet3D>(entity);
+//            btTransform transform;
+//            transform.setOrigin(btVector3(obj.position.x(), obj.position.y(), obj.position.z()));
+//            transform.setRotation(btQuaternion(obj.rotation.vector().x(), obj.rotation.vector().y(), obj.rotation.vector().z(), obj.rotation.scalar()));
+//            body->setWorldTransform(transform);
+//        }
+//    }
+//}
+//
+//void PhysicsSystem::syncPhysicsToTransforms() {
+//    for (auto& [entity, body] : entityToBody) {
+//        if (registry.valid(entity)) {
+//            btTransform transform = body->getWorldTransform();
+//            auto& obj = registry.get<Objet3D>(entity);
+//            const btVector3& pos = transform.getOrigin();
+//            const btQuaternion& rot = transform.getRotation();
+//            obj.position = {pos.getX(), pos.getY(), pos.getZ()};
+//            obj.rotation = Magnum::Quaternion({rot.getX(), rot.getY(), rot.getZ()});
+//        }
+//    }
+//}

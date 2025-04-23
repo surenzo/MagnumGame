@@ -1,11 +1,16 @@
-// ECS/Components.hpp
 #pragma once
-#include <Magnum/Math/Vector3.h>
-#include <Magnum/Math/Quaternion.h>
-#include <btBulletDynamicsCommon.h>
+#include <Magnum/SceneGraph/Scene.h>
+#include <Magnum/SceneGraph/Object.h>
+#include <entt/entt.hpp>
 
-struct Objet3D {
-    Magnum::Vector3 position;
-    Magnum::Quaternion rotation;
-    btRigidBody* rigidbody = nullptr; // Lien vers le rigidbody dans Bullet
+using namespace Magnum;
+
+// Ton composant pour les objets 3D
+struct Object3D {
+    SceneGraph::Object<SceneGraph::MatrixTransformation3D>* object;
+};
+
+// Composant pour la physique
+struct RigidBodyComponent {
+    btRigidBody* body;
 };
