@@ -9,16 +9,9 @@ PhysicsSystem::~PhysicsSystem() {
 
 }
 // TODO : add position and rotation to the rigid body
-RigidBody* PhysicsSystem::addRigidBody(float mass, bool isBox) {
-    btCollisionShape* shape;
-    if(isBox) {
-      //TODO
-      // cast btboxshape to btcollisionshape en
-        shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
-    } else {
-        shape = new btSphereShape(0.25f); // sphere taille 1
-    }
-    auto* o = new RigidBody{&_scene, 1.0f, shape, _bWorld};
+RigidBody* PhysicsSystem::addBox(Vector3 size, float mass) {
+    btCollisionShape* shape = new btBoxShape(btVector3(size)); // cube taille 1
+    auto* o = new RigidBody{&_scene, mass, shape, _bWorld};
 
 
     // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
@@ -45,11 +38,20 @@ RigidBody* PhysicsSystem::addRigidBody(float mass, bool isBox) {
 //    entityToBody[entity] = body;
 }
 
-RigidBody* PhysicsSystem::addGround(){
-    auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
-    return ground;
-  }
+// RigidBody* PhysicsSystem::addGround(){
+//     auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
+//     return ground;
+//   }
+RigidBody* PhysicsSystem::addSphere(float radius, float mass) {
+    btCollisionShape* shape = new btSphereShape(radius);
+    auto* o = new RigidBody{&_scene, mass, shape, _bWorld};
 
+
+    // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+
+    o->syncPose();
+    return o;
+}
 void PhysicsSystem::update(float dt){
 
     for(Object3D* obj = _scene.children().first(); obj; ) {

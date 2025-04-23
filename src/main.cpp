@@ -19,6 +19,7 @@
 
 #include "Magnum/Trade/MeshData.h"
 #include "physics/PhysicsSystem.hpp"
+#include "Rendering/RenderingSystem.h"
 
 namespace Magnum::Game {
 
@@ -36,20 +37,13 @@ private:
     void viewportEvent(ViewportEvent& event) override;
     void keyPressEvent(KeyEvent& event) override;
     void pointerPressEvent(PointerEvent& event) override;
-
-    GL::Mesh _box{NoCreate}, _sphere{NoCreate};
-    GL::Buffer _boxInstanceBuffer{NoCreate}, _sphereInstanceBuffer{NoCreate};
-    Shaders::PhongGL _shader{NoCreate};
-    BulletIntegration::DebugDraw _debugDraw{NoCreate};
-    Containers::Array<InstanceData> _boxInstanceData, _sphereInstanceData;
-
     Timeline _timeline;
 
-    PhysicsSystem _system;
+    PhysicsSystem _physicSystem;
+    std::unique_ptr<RenderingSystem> _renderingSystem;
 
     Object3D *_cameraRig, *_cameraObject;
     SceneGraph::Camera3D* _camera;
-    SceneGraph::DrawableGroup3D _drawables;
 
     bool _drawCubes{true}, _drawDebug{true};
     ImGuiIntegration::Context _imgui{NoCreate};
@@ -68,8 +62,10 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments): Platform::Applicat
     // -------
 
 
+    _renderingSystem = std::make_unique<RenderingSystem>();
+
     // probablement a changer
-    (*(_cameraRig = new Object3D{_system.getScene()}))
+    (*(_cameraRig = new Object3D{_physicSystem.getScene()}))
         .translate(Vector3::yAxis(3.0f))
         .rotateY(40.0_degf);
     (*(_cameraObject = new Object3D{_cameraRig}))
@@ -80,48 +76,17 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments): Platform::Applicat
         .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 100.0f))
         .setViewport(GL::defaultFramebuffer.viewport().size());
 
-    _shader = Shaders::PhongGL{Shaders::PhongGL::Configuration{}
-        .setFlags(Shaders::PhongGL::Flag::VertexColor | Shaders::PhongGL::Flag::InstancedTransformation)};
-    _shader.setAmbientColor(0x222222_rgbf)
-           .setDiffuseColor(0x888888_rgbf)
-           .setSpecularColor(0xffffff_rgbf)
-           .setShininess(50.0f)
-           .setLightPositions({{10.0f, 15.0f, 5.0f, 0.0f}});
-
-    _box = MeshTools::compile(Primitives::cubeSolid());
-    _sphere = MeshTools::compile(Primitives::uvSphereSolid(16, 32));
-    _boxInstanceBuffer = GL::Buffer{};
-    _sphereInstanceBuffer = GL::Buffer{};
-    _box.addVertexBufferInstanced(_boxInstanceBuffer, 1, 0,
-        Shaders::PhongGL::TransformationMatrix{},
-        Shaders::PhongGL::NormalMatrix{},
-        Shaders::PhongGL::Color3{});
-    _sphere.addVertexBufferInstanced(_sphereInstanceBuffer, 1, 0,
-        Shaders::PhongGL::TransformationMatrix{},
-        Shaders::PhongGL::NormalMatrix{},
-        Shaders::PhongGL::Color3{});
-
-    GL::Renderer::enable(GL::Renderer::Feature::DepthTest);
-    GL::Renderer::enable(GL::Renderer::Feature::FaceCulling);
-    GL::Renderer::enable(GL::Renderer::Feature::PolygonOffsetFill);
-    GL::Renderer::setPolygonOffset(2.0f, 0.5f);
-
-    _debugDraw = BulletIntegration::DebugDraw{};
-
-    auto* ground = _system.addGround();
-    new ColoredDrawable{*ground, _boxInstanceData, 0xffffff_rgbf,
-        Matrix4::scaling({100.0f, 0.5f, 100.0f}), _drawables};
+    auto* ground = _physicSystem.addBox({100.0f, 0.5f, 100.0f}, 0.0f);
+    _renderingSystem.get()->addBox(*ground, {100.0f, 0.5f, 100.0f}, 0xffffff_rgbf);
 
     Deg hue = 42.0_degf;
     for(Int i = 0; i != 5; ++i) {
         for(Int j = 0; j != 5; ++j) {
             for(Int k = 0; k != 5; ++k) {
-                auto* o = _system.addRigidBody(1.0f, true);
+                auto* o = _physicSystem.addBox(Vector3{0.5f});
                 o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
                 o->syncPose();
-                new ColoredDrawable{*o, _boxInstanceData,
-                    Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}),
-                    Matrix4::scaling(Vector3{0.5f}), _drawables};
+                _renderingSystem.get()->addBox(*o, Vector3{0.5f}, Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
             }
         }
     }
@@ -139,35 +104,8 @@ void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
 void MagnumBootstrap::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-    _system.update(_timeline.previousFrameDuration());
-
-    if(_drawCubes) {
-        arrayResize(_boxInstanceData, 0);
-        arrayResize(_sphereInstanceData, 0);
-        _camera->draw(_drawables);
-
-        _shader.setProjectionMatrix(_camera->projectionMatrix());
-
-        _boxInstanceBuffer.setData(_boxInstanceData, GL::BufferUsage::DynamicDraw);
-        _box.setInstanceCount(_boxInstanceData.size());
-        _shader.draw(_box);
-
-        _sphereInstanceBuffer.setData(_sphereInstanceData, GL::BufferUsage::DynamicDraw);
-        _sphere.setInstanceCount(_sphereInstanceData.size());
-        _shader.draw(_sphere);
-    }
-
-    // if(_drawDebug) {
-    //     if(_drawCubes)
-    //         GL::Renderer::setDepthFunction(GL::Renderer::DepthFunction::LessOrEqual);
-    //
-    //     _debugDraw.setTransformationProjectionMatrix(
-    //         _camera->projectionMatrix() * _camera->cameraMatrix());
-    //     _bWorld.debugDrawWorld();
-    //
-    //     if(_drawCubes)
-    //         GL::Renderer::setDepthFunction(GL::Renderer::DepthFunction::Less);
-    // }
+    _physicSystem.update(_timeline.previousFrameDuration());
+    _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
 
     swapBuffers();
     _timeline.nextFrame();
@@ -217,14 +155,10 @@ void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
     const Vector2 clickPoint = Vector2::yScale(-1.0f) * (position / Vector2{framebufferSize()} - Vector2{0.5f}) * _camera->projectionSize();
     const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
 
-    auto* object = _system.addRigidBody(5.0f, false);
+    auto* object = _physicSystem.addSphere(1,5);
     object->translate(_cameraObject->absoluteTransformation().translation());
     object->syncPose();
-
-    new ColoredDrawable{*object,
-        _sphereInstanceData,
-        0x220000_rgbf,
-        Matrix4::scaling(Vector3{ 0.25f}), _drawables};
+    _renderingSystem.get()->addSphere(*object, 0.25f, 0x220000_rgbf);
 
     object->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
 

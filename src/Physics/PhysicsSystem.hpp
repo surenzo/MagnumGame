@@ -4,7 +4,6 @@
 #include <Magnum/SceneGraph/MatrixTransformation3D.h>
 #include "../ECS/Components.hpp"
 #include "Rigidbody.h"
-#include "ColoredDrawable.h"
 
 
 class PhysicsSystem {
@@ -20,8 +19,8 @@ public:
 
     btDiscreteDynamicsWorld* getWorld() { return &_bWorld; }
     Scene3D* getScene() { return &_scene; }
-    RigidBody* addRigidBody(float mass, bool isBox);
-    RigidBody* addGround();
+    RigidBody* addBox(Vector3 size = {1.0f,1.0f,1.0f}, float mass = 1.0f);
+    RigidBody* addSphere(float radius = 1.0f, float mass = 1.0f);
 
 private:
     btDbvtBroadphase _bBroadphase;
