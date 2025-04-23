@@ -1,23 +1,10 @@
 #include <Magnum/Platform/GlfwApplication.h>
-#include <Magnum/BulletIntegration/DebugDraw.h>
 #include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/GL/Renderer.h>
-#include <Magnum/MeshTools/Compile.h>
-#include <Magnum/Primitives/Cube.h>
-#include <Magnum/Primitives/UVSphere.h>
 #include <Magnum/SceneGraph/Camera.h>
-#include <Magnum/SceneGraph/Drawable.h>
-#include <Magnum/SceneGraph/Scene.h>
-#include <Magnum/Shaders/PhongGL.h>
-#include <Corrade/Containers/GrowableArray.h>
-#include <Corrade/Containers/Optional.h>
-#include <Corrade/Containers/Pointer.h>
-#include <btBulletDynamicsCommon.h>
 #include <Magnum/ImGuiIntegration/Context.hpp>
 #include <Magnum/Math/Time.h>
 #include <imgui.h>
 
-#include "Magnum/Trade/MeshData.h"
 #include "physics/PhysicsSystem.hpp"
 #include "Rendering/RenderingSystem.h"
 
@@ -113,38 +100,35 @@ void MagnumBootstrap::drawEvent() {
 }
 
 void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
-    if(event.key() == Key::W) {
-        _cameraObject->translateLocal(Vector3::zAxis(-0.1f));
-    } else if(event.key() == Key::S) {
-        _cameraObject->translateLocal(Vector3::zAxis(0.1f));
-    } else if(event.key() == Key::A) {
-        _cameraObject->translateLocal(Vector3::xAxis(-0.1f));
-    } else if(event.key() == Key::D) {
-        _cameraObject->translateLocal(Vector3::xAxis(0.1f));
-    } else if(event.key() == Key::Q) {
-        _cameraObject->translateLocal(Vector3::yAxis(0.1f));
-    } else if(event.key() == Key::E) {
-        _cameraObject->translateLocal(Vector3::yAxis(-0.1f));
-    } else if(event.key() == Key::Down) {
-        _cameraObject->rotateX(5.0_degf);
-    } else if(event.key() == Key::Up) {
-        _cameraObject->rotateX(-5.0_degf);
-    } else if(event.key() == Key::Left) {
-        _cameraRig->rotateY(-5.0_degf);
-    } else if(event.key() == Key::Right) {
-        _cameraRig->rotateY(5.0_degf);
-    } else if(event.key() == Key::C) {
-        if(_drawCubes && _drawDebug) {
-            _drawDebug = false;
-        } else if(_drawCubes && !_drawDebug) {
-            _drawCubes = false;
-            _drawDebug = true;
-        } else if(!_drawCubes && _drawDebug) {
-            _drawCubes = true;
-            _drawDebug = true;
-        }
-    }else return;
+    static const std::unordered_map<Key, std::function<void()>> keyActions{
+    {Key::W, [this]() { _cameraObject->translateLocal(Vector3::zAxis(-0.1f)); }},
+    {Key::S, [this]() { _cameraObject->translateLocal(Vector3::zAxis(0.1f)); }},
+    {Key::A, [this]() { _cameraObject->translateLocal(Vector3::xAxis(-0.1f)); }},
+    {Key::D, [this]() { _cameraObject->translateLocal(Vector3::xAxis(0.1f)); }},
+    {Key::Q, [this]() { _cameraObject->translateLocal(Vector3::yAxis(0.1f)); }},
+    {Key::E, [this]() { _cameraObject->translateLocal(Vector3::yAxis(-0.1f)); }},
+    {Key::Down, [this]() { _cameraObject->rotateX(5.0_degf); }},
+    {Key::Up, [this]() { _cameraObject->rotateX(-5.0_degf); }},
+    {Key::Left, [this]() { _cameraRig->rotateY(-5.0_degf); }},
+    {Key::Right, [this]() { _cameraRig->rotateY(5.0_degf); }},
+    {Key::C, [this]() {
+            if (_drawCubes && _drawDebug) {
+                _drawDebug = false;
+            } else if (_drawCubes && !_drawDebug) {
+                _drawCubes = false;
+                _drawDebug = true;
+            } else if (!_drawCubes && _drawDebug) {
+                _drawCubes = true;
+                _drawDebug = true;
+            }
+        }}
+    };
 
+    auto it = keyActions.find(event.key());
+    if (it != keyActions.end()) {
+        it->second(); // Execute the corresponding action
+        event.setAccepted();
+    }
     event.setAccepted();
 }
 

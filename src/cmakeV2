@@ -1,8 +1,6 @@
 cmake_minimum_required(VERSION 3.30)
 project(MagnumBootstrap)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/" ${CMAKE_MODULE_PATH})
 
 # Tous les fichiers de ta "core logic"
@@ -31,8 +29,8 @@ add_library(GameCore STATIC ${SRC_FILES})
 
 target_include_directories(GameCore PUBLIC
         inc
-        externals/entt/single_include
         externals/enet/include
+        externals/entt/single_include
 )
 
 target_link_libraries(GameCore PUBLIC
@@ -51,7 +49,6 @@ target_link_libraries(GameCore PUBLIC
         BulletCollision
         LinearMath
         Bullet3Common
-        enet
 )
 set_property(TARGET GameCore PROPERTY CXX_STANDARD 20)
 
