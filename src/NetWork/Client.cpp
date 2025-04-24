@@ -37,8 +37,81 @@ bool Client::connectToServer(const char* host, enet_uint16 port) {
     enet_peer_reset(peer);
     return false;
 }
+void Client::run( std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState) {
+    _running = true;
+    _thread = std::thread(&Client::loop, this, inputState, objectState);
+}
+
+
+void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState) {
+    ENetEvent event;
+    while (_running) {
+        std::cout << "Waiting for events...\n";
+        std::flush(std::cout);
+
+        // Check for input actions
+        auto inputActions = inputState->getInputActions();
+        // send every action to the server
+        for ( auto action : inputActions) {
+            // Serialize the action
+            // create packet with a tableau of uint8_t
+            // uint8_t data[sizeof(action)];
+            // TODO : :D
+            uint8_t type = 0;
+            uint8_t data = static_cast<uint8_t>(action);
+            //fusionne data et type
+            uint8_t buffer[2];
+            buffer[0] = type;
+            buffer[1] = data;
+            // Créer un paquet ENet
+            ENetPacket* packet = enet_packet_create(&buffer, sizeof(buffer), ENET_PACKET_FLAG_RELIABLE);
+            // Envoyer le paquet au serveur
+            enet_peer_send(peer, 0, packet);
+            std::cout << "Forward action\n";
+        }
+        inputState->clearInputActions();
+
+
+        int result = enet_host_service(client, &event, 16);
+        if (result > 0) {
+            std::cout << "Event received\n";
+            std::flush(std::cout);
+
+            switch (event.type) {
+                case ENET_EVENT_TYPE_CONNECT:
+                    std::cout << "server connected.\n";
+                std::flush(std::cout);
+                break;
+                case ENET_EVENT_TYPE_DISCONNECT:
+                    std::cout << "server disconnected.\n";
+                std::flush(std::cout);
+                break;
+                default:
+                    std::cout << "Unhandled event type: " << event.type << "\n";
+                std::flush(std::cout);
+                break;
+            }
+        } else if (result < 0) {
+            std::cerr << "Error in enet_host_service\n";
+            break;
+        }
+    }
+}
+void Client::stop() {
+    _running = false;
+    if (peer)
+        enet_peer_disconnect(peer, 0);
+    if (client) {
+        enet_host_destroy(client);
+        client = nullptr;
+    }
+    enet_deinitialize();
+    if (_thread.joinable())
+        _thread.join();
+}
 
 void Client::disconnect() {
+    _running = false;
     if (peer)
         enet_peer_disconnect(peer, 0);
 
@@ -46,4 +119,6 @@ void Client::disconnect() {
         enet_host_destroy(client);
 
     enet_deinitialize();
+    if (_thread.joinable())
+        _thread.join();
 }

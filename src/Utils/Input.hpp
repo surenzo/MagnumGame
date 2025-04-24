@@ -2,6 +2,20 @@
 #pragma once
 #include <Magnum/Platform/GlfwApplication.h>
 
+enum class InputAction {
+    FORWARD,
+    BACKWARD,
+    LEFT,
+    RIGHT,
+    UP,
+    DOWN,
+    ROTATE_LEFT,
+    ROTATE_RIGHT,
+    ROTATE_UP,
+    ROTATE_DOWN,
+};
+
+
 struct InputState {
     bool forward = false, left = false, back = false, right = false;
 };

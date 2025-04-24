@@ -3,14 +3,15 @@
 #include <Magnum/SceneGraph/Object.h>
 #include <entt/entt.hpp>
 
+#include "Magnum/Math/Color.h"
+#include "Magnum/Math/Quaternion.h"
+
 using namespace Magnum;
 
-// Ton composant pour les objets 3D
-struct Object3D {
-    SceneGraph::Object<SceneGraph::MatrixTransformation3D>* object;
-};
-
-// Composant pour la physique
-struct RigidBodyComponent {
-    btRigidBody* body;
+struct Objet {
+    Vector3 position;
+    Quaternion rotation;
+    Color3 couleur;
+    enum class Forme { Boule, Cube };
+    Forme forme;
 };

@@ -27,7 +27,11 @@ find_package(Bullet REQUIRED Dynamics)
 set_directory_properties(PROPERTIES CORRADE_USE_PEDANTIC_FLAGS ON)
 
 # Crée une lib partagée entre les exécutables
-add_library(GameCore STATIC ${SRC_FILES})
+add_library(GameCore STATIC ${SRC_FILES}
+        src/NetWork/Shared_Input.cpp
+        src/NetWork/Shared_Input.h
+        src/NetWork/Shared_Objects.cpp
+        src/NetWork/Shared_Objects.h)
 
 target_include_directories(GameCore PUBLIC
         inc

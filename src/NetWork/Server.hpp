@@ -1,4 +1,5 @@
 #pragma once
+#include <thread>
 #include <enet/enet.h>
 
 class Server {
@@ -9,4 +10,7 @@ public:
 
 private:
     ENetHost* server = nullptr;
+    void loop();
+    std::thread _thread;
+    std::atomic<bool> _running{false};
 };
