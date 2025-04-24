@@ -88,7 +88,13 @@ void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
 
 void MagnumBootstrap::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
-
+    // change the camera position based on what said the server:
+    auto objectActions = objectState->getCameraPosition();
+    //we got the position and rotation from the server
+    Vector3 position = objectActions.first;
+    Quaternion rotation = objectActions.second;
+    //set the camera position
+    _cameraObject->setTransformation(Matrix4::from(rotation.toMatrix(), position));
     _physicSystem.update(_timeline.previousFrameDuration());
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
 

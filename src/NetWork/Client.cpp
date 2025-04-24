@@ -1,6 +1,7 @@
 #include "Client.hpp"
 #include <enet/enet.h>
 #include <iostream>
+#include <cstring>
 
 bool Client::connectToServer(const char* host, enet_uint16 port) {
     if (enet_initialize() != 0) {
@@ -76,6 +77,8 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
         if (result > 0) {
             std::cout << "Event received\n";
             std::flush(std::cout);
+            uint8_t* data;
+            size_t dataSize;
 
             switch (event.type) {
                 case ENET_EVENT_TYPE_CONNECT:
@@ -86,6 +89,37 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                     std::cout << "server disconnected.\n";
                 std::flush(std::cout);
                 break;
+                case ENET_EVENT_TYPE_RECEIVE:
+                    //get the data
+                    data = event.packet->data;
+                    dataSize = event.packet->dataLength;
+                    if (data[0] == 1) { // its a object action
+                        // Deserialize the action
+                        Vector3 position;
+                        Vector4 falseRotation;
+
+                        // Deserialize position (3 floats)
+                        std::memcpy(&position[0], &data[1], sizeof(float)); // x
+                        std::memcpy(&position[1], &data[1 + sizeof(float)], sizeof(float)); // y
+                        std::memcpy(&position[2], &data[1 + 2 * sizeof(float)], sizeof(float)); // z
+
+                        // Deserialize rotation (3 floats)
+                        std::memcpy(&falseRotation[2], &data[1 + 3 * sizeof(float)], sizeof(uint32_t)); // w
+
+                        std::memcpy(&falseRotation[0], &data[1 + 3 * sizeof(float)+ 1 * sizeof(uint32_t) ], sizeof(uint32_t)); // x
+
+                        std::memcpy(&falseRotation[3], &data[1 + 3 * sizeof(float)+ 2 * sizeof(uint32_t) ], sizeof(uint32_t)); // y
+
+                        std::memcpy(&falseRotation[1], &data[1 + 3 * sizeof(float)+ 3 * sizeof(uint32_t) ], sizeof(uint32_t)); // z
+
+                        Quaternion rotation{{falseRotation[3] , falseRotation[1], falseRotation[2]}, falseRotation[0] };
+
+                        objectState->addCameraPosition(position, rotation);
+                        std::cout << "Position : (" << position.x() << ", " << position.y() << ", " << position.z() << ")" << std::endl;
+                        std::cout << "Rotation : (" << rotation.wxyz().w() << ", " << rotation.wxyz().x() << ", " << rotation.wxyz().y() << ", " << rotation.wxyz().z() << ")" << std::endl;
+                        std::cout << "Received object action\n";
+                    }
+                    enet_packet_destroy(event.packet);
                 default:
                     std::cout << "Unhandled event type: " << event.type << "\n";
                 std::flush(std::cout);
