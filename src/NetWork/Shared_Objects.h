@@ -1,5 +1,6 @@
 #pragma once
 #include <mutex>
+#include <vector>
 
 #include "Magnum/Math/Quaternion.h"
 #include "Magnum/Math/Vector3.h"
@@ -11,19 +12,18 @@ public:
 
     Shared_Objects() = default;
 
-    void addCameraPosition(Vector3 position, Quaternion rotation) {
+    void setWorld(std::vector<uint8_t> newWorld) {
         std::lock_guard<std::mutex> lock(_mutex);
-        _cameraPosition.first = position;
-        _cameraPosition.second = rotation;
+        world = std::move(newWorld);
     }
-    std::pair<Vector3, Quaternion> getCameraPosition() {
+    std::vector<uint8_t> getWorld() {
         std::lock_guard<std::mutex> lock(_mutex);
-        return _cameraPosition;
+        return world;
     }
 private:
 
     std::mutex _mutex;
-    std::pair<Vector3, Quaternion> _cameraPosition;
+    std::vector<uint8_t> world;
 
 };
 

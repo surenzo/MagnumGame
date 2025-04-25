@@ -50,31 +50,11 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
 
         if (!connectedClients.empty()) {
             //check for sending objects
-            auto objectActions = objectState->getCameraPosition();
-
-            // Serialize the action
-            uint8_t type = 1; // Example type for object actions
-            Vector3 position = objectActions.first; // Assuming getCameraPosition() returns a pair of position and rotation
-            Quaternion rotation = objectActions.second;
-            std::cout << "Position : (" << position.x() << ", " << position.y() << ", " << position.z() << ")" << std::endl;
-            std::cout << "Rotation : (" << rotation.wxyz().w() << ", " << rotation.wxyz().x() << ", " << rotation.wxyz().y() << ", " << rotation.wxyz().z() << ")" << std::endl;
-
-            // Serialize position and rotation into a buffer
             std::vector<uint8_t> buffer;
-            buffer.push_back(type); // Add type
-
-            // Serialize position (x, y, z)
-            for (float coord : {position.x(), position.y(), position.z()}) {
-                uint8_t* coordBytes = reinterpret_cast<uint8_t*>(&coord);
-                buffer.insert(buffer.end(), coordBytes, coordBytes + sizeof(float));
-            }
-
-            // Serialize Quaternion
-            for (float coord : {rotation.wxyz().w(), rotation.wxyz().x(), rotation.wxyz().y(), rotation.wxyz().z()}) {
-                uint8_t* coordBytes = reinterpret_cast<uint8_t*>(&coord);
-                buffer.insert(buffer.end(), coordBytes, coordBytes + sizeof(float));
-            }
-
+            uint8_t type =1;
+            buffer.push_back(type);
+            auto world = objectState->getWorld();
+            buffer.insert(buffer.end(), world.begin(), world.end());
             // Create an ENet packet
             ENetPacket* packet = enet_packet_create(buffer.data(), buffer.size(), ENET_PACKET_FLAG_RELIABLE);
 

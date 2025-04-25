@@ -31,6 +31,9 @@ public:
     void syncPose() {
         _bRigidBody->setWorldTransform(btTransform(transformationMatrix()));
     }
+    btRigidBody& getRigidBody() {
+        return *_bRigidBody;
+    }
 
 private:
     btDynamicsWorld& _bWorld;

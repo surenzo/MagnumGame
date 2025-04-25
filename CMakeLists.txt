@@ -31,7 +31,9 @@ add_library(GameCore STATIC ${SRC_FILES}
         src/NetWork/Shared_Input.cpp
         src/NetWork/Shared_Input.h
         src/NetWork/Shared_Objects.cpp
-        src/NetWork/Shared_Objects.h)
+        src/NetWork/Shared_Objects.h
+        src/NetWork/Shared_Input.cpp
+        src/ECS/Deserialization.cpp)
 
 target_include_directories(GameCore PUBLIC
         inc

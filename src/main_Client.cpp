@@ -11,6 +11,7 @@
 #include "Network/Client.hpp"
 #include "NetWork/Shared_Input.h"
 #include "NetWork/Shared_Objects.h"
+#include "ECS/Deserialization.cpp"
 
 namespace Magnum::Game {
 
@@ -29,6 +30,9 @@ private:
     void keyPressEvent(KeyEvent& event) override;
     void pointerPressEvent(PointerEvent& event) override;
     Timeline _timeline;
+
+    entt::registry _registry;
+    std::unordered_map<uint32_t,uint32_t> linkingContext;
 
     PhysicsSystem _physicSystem;
     std::unique_ptr<RenderingSystem> _renderingSystem;
@@ -89,12 +93,16 @@ void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
 void MagnumBootstrap::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
     // change the camera position based on what said the server:
-    auto objectActions = objectState->getCameraPosition();
-    //we got the position and rotation from the server
-    Vector3 position = objectActions.first;
-    Quaternion rotation = objectActions.second;
-    //set the camera position
-    _cameraObject->setTransformation(Matrix4::from(rotation.toMatrix(), position));
+
+    auto newRegistry = objectState->getWorld();
+
+    // TODO : update the registry with the new objects
+    entt::registry _newRegistry;
+    deserializeRegistry(_newRegistry, newRegistry);
+
+    updateRegistry(_registry, _newRegistry, linkingContext);
+
+
     _physicSystem.update(_timeline.previousFrameDuration());
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
 
