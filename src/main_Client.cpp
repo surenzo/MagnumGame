@@ -63,6 +63,8 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
     objectState = objectStates;
     _renderingSystem = std::make_unique<RenderingSystem>();
 
+
+
     // probablement a changer
     (*(_cameraRig = new Object3D{_physicSystem.getScene()}))
         .translate(Vector3::yAxis(3.0f))
@@ -102,6 +104,11 @@ void MagnumBootstrap::drawEvent() {
     deserializeRegistry(_newRegistry, newRegistry);
 
     updateRegistry(_newRegistry);
+
+    if (_camera == nullptr) {
+        std::cerr << "Camera object is null" << std::endl;
+        return;
+    }
 
     _physicSystem.update(_timeline.previousFrameDuration());
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
@@ -205,6 +212,8 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
                     .translate(transform.position)
                     .rotate(transform.rotation);
             }
+            else
+                std::cerr << "Object not found for entity " << static_cast<unsigned int>(localEntity) << std::endl;
 
         } else {
             // New entity
@@ -238,6 +247,24 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
             _registry.emplace<ObjectLinkComponent>(localEntity, object);
         }
     }
+
+    auto view2 = newRegistry.view<TransformComponent, CameraComponent>();
+
+    for (auto entity : view2) {
+        uint32_t remoteID = static_cast<uint32_t>(entity);
+
+        TransformComponent transform = view2.get<TransformComponent>(entity);
+        CameraComponent camera = view2.get<CameraComponent>(entity);
+        if (camera.id != 0)
+            continue;
+
+
+        //change the camera position
+        _cameraObject->resetTransformation()
+            .translate(transform.position)
+            .rotate(transform.rotation);
+    }
+
 
     // Supprimer les entités locales qui ne sont plus dans le nouveau registre
     for (auto [remoteID, localEntity] : linkingContext) {

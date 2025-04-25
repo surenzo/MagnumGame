@@ -47,8 +47,6 @@ void Client::run( std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
 void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState) {
     ENetEvent event;
     while (_running) {
-        std::cout << "Waiting for events...\n";
-        std::flush(std::cout);
 
         // Check for input actions
         auto inputActions = inputState->getInputActions();
@@ -68,14 +66,12 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
             ENetPacket* packet = enet_packet_create(&buffer, sizeof(buffer), ENET_PACKET_FLAG_RELIABLE);
             // Envoyer le paquet au serveur
             enet_peer_send(peer, 0, packet);
-            std::cout << "Forward action\n";
         }
         inputState->clearInputActions();
 
 
         int result = enet_host_service(client, &event, 16);
         if (result > 0) {
-            std::cout << "Event received\n";
             std::flush(std::cout);
             uint8_t* data;
             size_t dataSize;

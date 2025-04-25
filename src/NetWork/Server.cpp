@@ -45,8 +45,6 @@ void Server::stop() {
 void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState) {
     ENetEvent event;
     while (_running) {
-        std::cout << "Waiting for events...\n";
-        std::flush(std::cout);
 
         if (!connectedClients.empty()) {
             //check for sending objects
@@ -60,12 +58,10 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
 
             // Send the packet to the client
             enet_peer_send(connectedClients[0], 0, packet);
-            std::cout << "Forwarded object action\n";
         }
 
         int result = enet_host_service(server, &event, 16);
         if (result > 0) {
-            std::cout << "Event received\n";
             std::flush(std::cout);
             uint8_t* data;
             size_t dataSize;
@@ -86,7 +82,6 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                     if (data[0] == 0) // its a input action
                     {
                         inputState->addInputAction(static_cast<InputAction>(data[1]));
-                        std::cout << "Received input action: " << static_cast<int>(data[1]) << "\n";
                     }
                 break;
                 default:

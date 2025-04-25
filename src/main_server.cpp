@@ -55,7 +55,7 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
 
     // 1. Sol
     {
-        auto* ground = _physicSystem.addBox({100.0f, 0.5f, 100.0f}, 0.0f);
+        auto* ground = _physicSystem.addBox({20.0f, 0.5f, 20.0f}, 0.0f);
 
         auto groundEntity = _registry.create();
 
@@ -69,7 +69,7 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
             groundEntity,
             ShapeComponent::ShapeType::Box,
             0.0f, // masse
-            Vector3{100.0f, 0.5f, 100.0f},
+            Vector3{20.0f, 0.5f, 20.0f},
             0.0f
         );
 

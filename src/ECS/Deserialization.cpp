@@ -70,8 +70,11 @@ void deserializeRegistry(entt::registry& registry, const std::vector<uint8_t>& b
             }
             case 1: { // CameraComponent
                 CameraComponent camera;
+                TransformComponent transform;
                 deserializeCamera(data, camera);
+                deserializeTransform(data, transform);
                 registry.emplace<CameraComponent>(entity, camera);
+                registry.emplace<TransformComponent>(entity, transform);
                 break;
             }
             default:

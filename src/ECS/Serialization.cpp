@@ -51,9 +51,10 @@ std::vector<uint8_t> serializeRegistry(const entt::registry& registry) {
         serializeColor(buffer, render);
     }
 
-    auto view2 = registry.view<CameraComponent>();
+    auto view2 = registry.view<TransformComponent,CameraComponent>();
 
     for (auto entity : view2) {
+        const auto& transform = view2.get<TransformComponent>(entity);
         const auto& camera = view2.get<CameraComponent>(entity);
 
         uint8_t type = 1; // or some other identifier
@@ -63,6 +64,7 @@ std::vector<uint8_t> serializeRegistry(const entt::registry& registry) {
         buffer.insert(buffer.end(), reinterpret_cast<uint8_t*>(&id), reinterpret_cast<uint8_t*>(&id) + sizeof(uint32_t));
 
         serializeCamera(camera, buffer);
+        serializeTransform(buffer, transform);
     }
 
     return buffer;
