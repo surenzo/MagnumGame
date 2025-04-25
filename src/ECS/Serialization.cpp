@@ -16,6 +16,7 @@ void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
     out.push_back(type);
 
     out.insert(out.end(), reinterpret_cast<const uint8_t*>(&shape.size), reinterpret_cast<const uint8_t*>(&shape.size) + sizeof(shape.size));
+    out.insert(out.end(), reinterpret_cast<const uint8_t*>(&shape.mass), reinterpret_cast<const uint8_t*>(&shape.mass) + sizeof(shape.mass));
     out.insert(out.end(), reinterpret_cast<const uint8_t*>(&shape.radius), reinterpret_cast<const uint8_t*>(&shape.radius) + sizeof(shape.radius));
 }
 

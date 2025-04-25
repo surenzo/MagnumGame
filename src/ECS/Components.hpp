@@ -17,12 +17,13 @@ struct TransformComponent {
 struct ShapeComponent {
     enum class ShapeType { Sphere, Box };
     ShapeType type;
+    float mass;
     Magnum::Vector3 size; // Utilisé pour les boîtes
     float radius; // Utilisé pour les sphères
 };
 
 struct RenderComponent {
-    Magnum::Color4 color;
+    Magnum::Color3 color;
     // autre info de rendu
 };
 
@@ -36,4 +37,8 @@ struct CameraComponent {
 
 struct CameraLinkComponent {
     SceneGraph::Object<SceneGraph::MatrixTransformation3D>* cameraObject;
+};
+
+struct ObjectLinkComponent {
+    SceneGraph::Object<SceneGraph::MatrixTransformation3D>* object;
 };

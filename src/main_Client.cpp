@@ -29,10 +29,11 @@ private:
     void viewportEvent(ViewportEvent& event) override;
     void keyPressEvent(KeyEvent& event) override;
     void pointerPressEvent(PointerEvent& event) override;
+    void updateRegistry(const entt::registry& newRegistry);
     Timeline _timeline;
 
     entt::registry _registry;
-    std::unordered_map<uint32_t,uint32_t> linkingContext;
+    std::unordered_map<uint32_t,entt::entity> linkingContext;
 
     PhysicsSystem _physicSystem;
     std::unique_ptr<RenderingSystem> _renderingSystem;
@@ -73,11 +74,11 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
         ->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
         .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 100.0f))
         .setViewport(GL::defaultFramebuffer.viewport().size());
-
-    auto* dummyBox = _physicSystem.addBox(Vector3{0.5f});
-    dummyBox->translate({0.0f, 0.0f, 0.0f});
-    dummyBox->syncPose();
-    _renderingSystem.get()->addBox(*dummyBox, Vector3{0.5f}, 0xffffff_rgbf);
+    //
+    // auto* dummyBox = _physicSystem.addBox(Vector3{0.5f});
+    // dummyBox->translate({0.0f, 0.0f, 0.0f});
+    // dummyBox->syncPose();
+    // _renderingSystem.get()->addBox(*dummyBox, Vector3{0.5f}, 0xffffff_rgbf);
 
     setSwapInterval(1);
     setMinimalLoopPeriod(16.0_msec);
@@ -100,8 +101,7 @@ void MagnumBootstrap::drawEvent() {
     entt::registry _newRegistry;
     deserializeRegistry(_newRegistry, newRegistry);
 
-    updateRegistry(_registry, _newRegistry, linkingContext);
-
+    updateRegistry(_newRegistry);
 
     _physicSystem.update(_timeline.previousFrameDuration());
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
@@ -173,6 +173,90 @@ void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
     event.setAccepted();
 }
 
+void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
+    std::unordered_set<entt::entity> stillExists;
+
+    auto view = newRegistry.view<TransformComponent, ShapeComponent, RenderComponent>();
+
+    for (auto entity : view) {
+        uint32_t remoteID = static_cast<uint32_t>(entity);
+
+        TransformComponent transform = view.get<TransformComponent>(entity);
+        ShapeComponent shape = view.get<ShapeComponent>(entity);
+        RenderComponent render = view.get<RenderComponent>(entity);
+
+        if (linkingContext.contains(remoteID)) {
+            entt::entity localEntity = linkingContext[remoteID];
+            stillExists.insert(localEntity);
+
+            // Update existing components
+            auto& localTransform = _registry.get<TransformComponent>(localEntity);
+            localTransform = transform;
+
+            auto& localRender = _registry.get<RenderComponent>(localEntity);
+            localRender = render;
+
+            auto& localShape = _registry.get<ShapeComponent>(localEntity);
+            localShape = shape;
+
+            // Update SceneGraph object if needed
+            if (auto* link = _registry.try_get<ObjectLinkComponent>(localEntity)) {
+                link->object->resetTransformation()
+                    .translate(transform.position)
+                    .rotate(transform.rotation);
+            }
+
+        } else {
+            // New entity
+            entt::entity localEntity = _registry.create();
+            linkingContext[remoteID] = localEntity;
+            stillExists.insert(localEntity);
+
+            _registry.emplace<TransformComponent>(localEntity, transform);
+            _registry.emplace<ShapeComponent>(localEntity, shape);
+            _registry.emplace<RenderComponent>(localEntity, render);
+
+            // Création d'un objet SceneGraph
+            // auto* object = new SceneGraph::Object<SceneGraph::MatrixTransformation3D>{scene};
+            // object->translate(transform.position)
+            //       .rotate(transform.rotation);
+            RigidBody* object;
+            switch (shape.type) {
+                case ShapeComponent::ShapeType::Sphere:
+                    object = _physicSystem.addSphere(shape.radius, shape.mass);
+                    _renderingSystem.get()->addSphere(*object, shape.radius, render.color);
+                    break;
+                case ShapeComponent::ShapeType::Box:
+                    object = _physicSystem.addBox(shape.size, shape.mass);
+                    _renderingSystem.get()->addBox(*object, shape.size, render.color);
+                    break;
+            }
+            object->translate(transform.position);
+            object->rotate(transform.rotation);
+            object->syncPose();
+
+            _registry.emplace<ObjectLinkComponent>(localEntity, object);
+        }
+    }
+
+    // Supprimer les entités locales qui ne sont plus dans le nouveau registre
+    for (auto [remoteID, localEntity] : linkingContext) {
+        if (!stillExists.contains(localEntity)) {
+            if (auto* objLink = _registry.try_get<ObjectLinkComponent>(localEntity)) {
+                delete objLink->object;
+            }
+            _registry.destroy(localEntity);
+        }
+    }
+
+    // Nettoyage du linkingContext
+    for (auto it = linkingContext.begin(); it != linkingContext.end(); ) {
+        if (!stillExists.contains(it->second))
+            it = linkingContext.erase(it);
+        else
+            ++it;
+    }
+}
 }
 int  main(int argc, char** argv) {
     auto inputStates = std::make_shared<Shared_Input>();
@@ -188,3 +272,5 @@ int  main(int argc, char** argv) {
     app.exec();
     return 0;
 }
+
+

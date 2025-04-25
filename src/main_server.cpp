@@ -68,13 +68,14 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
         _registry.emplace<ShapeComponent>(
             groundEntity,
             ShapeComponent::ShapeType::Box,
+            0.0f, // masse
             Vector3{100.0f, 0.5f, 100.0f},
             0.0f
         );
 
         _registry.emplace<RenderComponent>(
             groundEntity,
-            Color4{0.2f, 0.2f, 0.2f, 1.0f} // couleur du sol
+            Color3{0.2f, 0.2f, 0.2f}
         );
 
         _registry.emplace<PhysicsLinkComponent>(
@@ -83,6 +84,7 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
         );
     }
 
+    Deg hue = 42.0_degf;
     // 2. Boîtes empilées
     for(Int i = 0; i != 5; ++i) {
         for(Int j = 0; j != 5; ++j) {
@@ -102,13 +104,14 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
                 _registry.emplace<ShapeComponent>(
                     boxEntity,
                     ShapeComponent::ShapeType::Box,
+                    1.0f, // masse
                     Vector3{0.5f}, // taille
                     0.0f           // radius ignoré
                 );
 
                 _registry.emplace<RenderComponent>(
                     boxEntity,
-                    Color4{0.8f, 0.2f, 0.1f, 1.0f} // couleur aléatoire ?
+                    Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f})
                 );
 
                 _registry.emplace<PhysicsLinkComponent>(

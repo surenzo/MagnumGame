@@ -22,6 +22,9 @@ void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
     std::memcpy(&shape.size, data, sizeof(shape.size));
     data += sizeof(shape.size);
 
+    std::memcpy(&shape.mass, data, sizeof(shape.mass));
+    data += sizeof(shape.mass);
+
     std::memcpy(&shape.radius, data, sizeof(shape.radius));
     data += sizeof(shape.radius);
 }
