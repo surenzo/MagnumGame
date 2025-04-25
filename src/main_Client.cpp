@@ -110,7 +110,7 @@ void MagnumBootstrap::drawEvent() {
         return;
     }
 
-    _physicSystem.update(_timeline.previousFrameDuration());
+    _physicSystem.getWorld()->stepSimulation( _timeline.previousFrameDuration(), 5);
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
 
     swapBuffers();
@@ -164,18 +164,20 @@ void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
 
 void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
     if(!event.isPrimary() || !(event.pointer() & (Pointer::MouseLeft))) return;
-    std::cout << "Click "  << std::endl;
 
     const Vector2 position = event.position() * Vector2{framebufferSize()} / Vector2{windowSize()};
     const Vector2 clickPoint = Vector2::yScale(-1.0f) * (position / Vector2{framebufferSize()} - Vector2{0.5f}) * _camera->projectionSize();
-    const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
 
-    auto* object = _physicSystem.addSphere(1,5);
-    object->translate(_cameraObject->absoluteTransformation().translation());
-    object->syncPose();
-    _renderingSystem.get()->addSphere(*object, 0.25f, 0x220000_rgbf);
+    inputState->addClickAction(InputAction::MOUSE_LEFT, clickPoint);
 
-    object->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
+    // const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
+    //
+    // auto* object = _physicSystem.addSphere(1,5);
+    // object->translate(_cameraObject->absoluteTransformation().translation());
+    // object->syncPose();
+    // _renderingSystem.get()->addSphere(*object, 0.25f, 0x220000_rgbf);
+    //
+    // object->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
 
     event.setAccepted();
 }
@@ -204,16 +206,25 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
             localRender = render;
 
             auto& localShape = _registry.get<ShapeComponent>(localEntity);
-            localShape = shape;
+            // Update shape if needed
 
             // Update SceneGraph object if needed
             if (auto* link = _registry.try_get<ObjectLinkComponent>(localEntity)) {
+                if (localShape.type != shape.type) {
+                    std::cout << "Shape type changed for entity " << static_cast<unsigned int>(localEntity) << std::endl;
+                    //enleve object link component et le remplace par un nouveau
+                    auto object = _physicSystem.addSphere(shape.radius, shape.mass);
+                    _renderingSystem.get()->addSphere(*object, shape.radius, render.color);
+                    link->object = object;
+                }
                 link->object->resetTransformation()
                     .translate(transform.position)
                     .rotate(transform.rotation);
             }
             else
                 std::cerr << "Object not found for entity " << static_cast<unsigned int>(localEntity) << std::endl;
+
+            localShape = shape;
 
         } else {
             // New entity
@@ -232,6 +243,7 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
             RigidBody* object;
             switch (shape.type) {
                 case ShapeComponent::ShapeType::Sphere:
+                    std::cout << "Creating sphere" << std::endl;
                     object = _physicSystem.addSphere(shape.radius, shape.mass);
                     _renderingSystem.get()->addSphere(*object, shape.radius, render.color);
                     break;

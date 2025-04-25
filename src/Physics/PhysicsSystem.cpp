@@ -19,29 +19,7 @@ RigidBody* PhysicsSystem::addBox(Vector3 size, float mass) {
     o->syncPose();
     return o;
 
-// TODO : je sais pas ?
-
-//    auto& obj = registry.get<Objet3D>(entity);
-//
-//    btCollisionShape* shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
-//
-//    btVector3 localInertia(0, 0, 0);
-//    if(mass > 0.0f)
-//        shape->calculateLocalInertia(mass, localInertia);
-//
-//    auto* motionState = new MotionStateWrapper(&obj);
-//
-//    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, localInertia);
-//    btRigidBody* body = new btRigidBody(rbInfo);
-//
-//    dynamicsWorld->addRigidBody(body);
-//    entityToBody[entity] = body;
 }
-
-// RigidBody* PhysicsSystem::addGround(){
-//     auto* ground = new RigidBody{&_scene, 0.0f, &_bGroundShape, _bWorld};
-//     return ground;
-//   }
 RigidBody* PhysicsSystem::addSphere(float radius, float mass) {
     btCollisionShape* shape = new btSphereShape(radius);
     auto* o = new RigidBody{&_scene, mass, shape, _bWorld};
@@ -91,3 +69,24 @@ void PhysicsSystem::update(float dt){
 //        }
 //    }
 //}
+
+
+
+
+// TODO : je sais pas ?
+
+//    auto& obj = registry.get<Objet3D>(entity);
+//
+//    btCollisionShape* shape = new btBoxShape(btVector3(0.5f, 0.5f, 0.5f)); // cube taille 1
+//
+//    btVector3 localInertia(0, 0, 0);
+//    if(mass > 0.0f)
+//        shape->calculateLocalInertia(mass, localInertia);
+//
+//    auto* motionState = new MotionStateWrapper(&obj);
+//
+//    btRigidBody::btRigidBodyConstructionInfo rbInfo(mass, motionState, shape, localInertia);
+//    btRigidBody* body = new btRigidBody(rbInfo);
+//
+//    dynamicsWorld->addRigidBody(body);
+//    entityToBody[entity] = body;

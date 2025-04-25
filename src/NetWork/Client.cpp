@@ -50,6 +50,9 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
 
         // Check for input actions
         auto inputActions = inputState->getInputActions();
+        auto inputActionsWithPosition = inputState->getInputActionsWithPosition();
+        inputState->clearInputActions();
+
         // send every action to the server
         for ( auto action : inputActions) {
             // Serialize the action
@@ -67,8 +70,23 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
             // Envoyer le paquet au serveur
             enet_peer_send(peer, 0, packet);
         }
-        inputState->clearInputActions();
-
+        for (auto action : inputActionsWithPosition) {
+            // Serialize the action
+            // create packet with a tableau of uint8_t
+            // uint8_t data[sizeof(action)];
+            // TODO : :D
+            uint8_t type = 2;
+            uint8_t data = static_cast<uint8_t>(action.first);
+            //fusionne data et type
+            uint8_t buffer[2 + sizeof(action.second)];
+            buffer[0] = type;
+            buffer[1] = data;
+            memcpy(buffer + 2, &action.second, sizeof(action.second));
+            // Créer un paquet ENet
+            ENetPacket* packet = enet_packet_create(&buffer, sizeof(buffer), ENET_PACKET_FLAG_RELIABLE);
+            // Envoyer le paquet au serveur
+            enet_peer_send(peer, 0, packet);
+        }
 
         int result = enet_host_service(client, &event, 16);
         if (result > 0) {

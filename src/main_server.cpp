@@ -158,6 +158,7 @@ void ServerApplication::loop() {
 void ServerApplication::tick() {
     //play inputs
     auto inputActions = inputState->getInputActions();
+    auto inputActionsWithPosition = inputState->getInputActionsWithPosition();
     inputState->clearInputActions();
 
     if (_cameraObject == nullptr) {
@@ -183,6 +184,57 @@ void ServerApplication::tick() {
             it->second(); // Execute the corresponding action
         }
     }
+
+    //do this if there is a click :
+
+    for (auto action : inputActionsWithPosition) {
+        if (action.first == InputAction::MOUSE_LEFT) {
+            const Vector2 position = action.second;
+            const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
+
+            auto* sphere = _physicSystem.addSphere(1, 5);
+            sphere->translate(_cameraObject->absoluteTransformation().translation());
+            sphere->syncPose();
+
+            auto sphereEntity = _registry.create();
+
+            _registry.emplace<TransformComponent>(
+                sphereEntity,
+                sphere->transformationMatrix().translation(),
+                Quaternion::fromMatrix(sphere->transformationMatrix().rotation())
+            );
+
+            _registry.emplace<ShapeComponent>(
+                sphereEntity,
+                ShapeComponent::ShapeType::Sphere,
+                1.0f, // masse
+                Vector3{1.0f}, // taille
+                1.0f           // radius ignoré
+            );
+
+            _registry.emplace<RenderComponent>(
+                sphereEntity,
+                0x220000_rgbf
+            );
+
+            _registry.emplace<PhysicsLinkComponent>(
+                sphereEntity,
+                sphere
+            );
+            sphere->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
+        }
+    }
+
+    // const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{clickPoint, -1.0f}).normalized();
+    //
+    // auto* object = _physicSystem.addSphere(1,5);
+    // object->translate(_cameraObject->absoluteTransformation().translation());
+    // object->syncPose();
+    // _renderingSystem.get()->addSphere(*object, 0.25f, 0x220000_rgbf);
+    //
+    // object->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
+
+
     updateRegistry();
     auto packet = serializeRegistry(_registry);
     objectState->setWorld(packet);

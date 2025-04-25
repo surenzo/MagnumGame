@@ -83,6 +83,14 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                     {
                         inputState->addInputAction(static_cast<InputAction>(data[1]));
                     }
+                    if (data[0] == 2) // input action with position
+                    {
+                        // Deserialize the action
+                        InputAction action = static_cast<InputAction>(data[1]);
+                        Magnum::Vector2 position;
+                        std::memcpy(&position, data + 2, sizeof(Magnum::Vector2));
+                        inputState->addClickAction(action, position);
+                    }
                 break;
                 default:
                     std::cout << "Unhandled event type: " << event.type << "\n";
