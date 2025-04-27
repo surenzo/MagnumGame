@@ -46,6 +46,8 @@ private:
     ImGuiIntegration::Context _imgui{NoCreate};
     std::shared_ptr<Shared_Input> inputState;
     std::shared_ptr<Shared_Objects> objectState;
+
+    int player;
 };
 
 MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates): Platform::Application(arguments, NoCreate) {
@@ -60,6 +62,7 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
         create(conf, glConf.setSampleCount(0));
     // -------
 
+    player = 0;
     inputState = inputStates;
     objectState = objectStates;
     _renderingSystem = std::make_unique<RenderingSystem>();
@@ -133,7 +136,9 @@ void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
     {Key::Up, [this]() { inputState->addInputAction(InputAction::ROTATE_UP); }},
     {Key::Left, [this]() { inputState->addInputAction(InputAction::ROTATE_LEFT); }},
     {Key::Right, [this]() { inputState->addInputAction(InputAction::ROTATE_RIGHT); }},
-    // {Key::B, [this]() { inputState->addInputAction(InputAction::B); printRegistery(_registry); }},
+        // if i press Y change the player to player 1
+    {Key::Y, [this]() {player= (player+1)%4;}},
+     {Key::B, [this]() { inputState->addInputAction(InputAction::B); /*printRegistery(_registry);*/ }},
     {Key::C, [this]() {
             if (_drawCubes && _drawDebug) {
                 _drawDebug = false;
@@ -226,7 +231,7 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
 
         TransformComponent transform = view2.get<TransformComponent>(entity);
         CameraComponent camera = view2.get<CameraComponent>(entity);
-        if (camera.id != 0)
+        if (camera.id != player)
             continue;
 
         _cameraObject->setTransformation(Matrix4::translation(transform.position));

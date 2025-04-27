@@ -19,9 +19,32 @@ RigidBody* PhysicsSystem::addBox(Vector3 size, float mass) {
     return o;
 
 }
+
+// TODO : add position and rotation to the rigid body
+RigidBody* PhysicsSystem::addBox(Object3D* parent, Vector3 size, float mass) {
+    btCollisionShape* shape = new btBoxShape(btVector3(size)); // cube taille 1
+    auto* o = new RigidBody{parent, mass, shape, _bWorld};
+
+
+    // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+
+    o->syncPose();
+    return o;
+
+}
 RigidBody* PhysicsSystem::addSphere(float radius, float mass) {
     btCollisionShape* shape = new btSphereShape(radius);
     auto* o = new RigidBody{&_scene, mass, shape, _bWorld};
+
+
+    // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+
+    o->syncPose();
+    return o;
+}
+RigidBody* PhysicsSystem::addSphere(Object3D* parent, float radius, float mass) {
+    btCollisionShape* shape = new btSphereShape(radius);
+    auto* o = new RigidBody{parent, mass, shape, _bWorld};
 
 
     // TODO : mettre a jour la position o->translate({i - 2.0f, j + 4.0f, k - 2.0f});

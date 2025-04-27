@@ -17,14 +17,18 @@ public:
     void loop();
     void tick();
 private:
-    RigidBody* createAndAddEntity(ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
+    RigidBody* createAndAddEntity(Object3D* parent, ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
+    void startGame();
     void PlayInputs();
 
     Timeline _timeline;
     entt::registry _registry;
 
     PhysicsSystem _physicSystem;
-    Object3D *_cameraRig, *_cameraObject;
+    std::vector<Object3D*> _cameraRig, _cameraObject;
+    std::vector<Object3D*> places;
+
+    std::unordered_map<InputAction, std::function<void()>> actionHandlers;
 
     float entityID = 0;
     std::shared_ptr<Shared_Input> inputState = std::make_shared<Shared_Input>();
@@ -37,44 +41,73 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
     objectState = objectStates;
     // add new entity to the registry
 
-    auto cameraEntity = _registry.create();
-    // add a transform component to the entity
-    // add a camera component to the entity
+    startGame();
+}
+void ServerApplication::startGame() {
+    // Create 4 parent objects for the 4 players (platforms)
+    std::vector<Object3D*> parents;
+    for (int i = 0; i < 4; ++i) {
+        // Dynamically allocate Object3D instances
+        parents.emplace_back(new Object3D{_physicSystem.getScene()});
+        parents[i]
+            ->translate(Vector3::xAxis(20.0f * (i % 2)))
+            .translate(Vector3::zAxis(20.0f * (i / 2)));
+        Vector3 p = parents[i]->transformationMatrix().translation();
+        std::cout << "Parent #" << i << " world pos = " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
+        auto cameraEntity = _registry.create();
 
-    (*(_cameraRig = new Object3D{_physicSystem.getScene()}))
-        .translate(Vector3::yAxis(3.0f))
-        .rotateY(40.0_degf);
-    (*(_cameraObject = new Object3D{_cameraRig}))
-        .translate(Vector3::zAxis(20.0f))
-    .rotateX(-25.0_degf);
+        _cameraRig.emplace_back(new Object3D{parents[i]});
+        _cameraRig[i]
+            ->translate(Vector3::yAxis(3.0f))
+            .rotateY(40.0_degf);
 
-    // Récupère la transformation globale (translation + rotation)
-    Matrix4 globalTransform = _cameraObject->transformationMatrix();
-    Vector3 position = globalTransform.translation();
-    Quaternion rotation = Quaternion::fromMatrix(globalTransform.rotation());
+        _cameraObject.emplace_back(new Object3D{_cameraRig[i]});
+        _cameraObject[i]
+            ->translate(Vector3::zAxis(20.0f))
+            .rotateX(-25.0_degf);
 
-    // Ajoute les composants
-    _registry.emplace<TransformComponent>(cameraEntity, position, rotation);
-    _registry.emplace<CameraComponent>(cameraEntity, /*id=*/0); // par exemple joueur 0
-    _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject);
+        Matrix4 cameraTransform = _cameraObject[i]->transformationMatrix();
+        Vector3 position = cameraTransform.translation();
+        Quaternion rotation = Quaternion::fromMatrix(cameraTransform.rotation());
 
-    //create the ground
-    createAndAddEntity(ShapeComponent::ShapeType::Box, {20.0f, 0.5f, 20.0f}, 0.0f, 0x220000_rgbf);
+        _registry.emplace<TransformComponent>(cameraEntity, position, rotation);
+        _registry.emplace<CameraComponent>(cameraEntity, /*id=*/i);
+        _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject[i]);
 
-    Deg hue = 42.0_degf;
-    // 2. Boîtes empilées
-    for(Int i = 0; i != 5; ++i) {
-        for(Int j = 0; j != 5; ++j) {
-            for(Int k = 0; k != 5; ++k) {
-                auto box = createAndAddEntity(
-                    ShapeComponent::ShapeType::Box,
-                    Vector3{0.5f},
-                    1.0f,
-                    Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
-                box->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+        auto ground = createAndAddEntity(parents[i], ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
+
+        places.emplace_back(ground);
+        Deg hue = 42.0_degf;
+        // Stacked boxes
+        for (Int i = 0; i != 5; ++i) {
+            for (Int j = 0; j != 5; ++j) {
+                for (Int k = 0; k != 5; ++k) {
+                    auto box = createAndAddEntity(
+                        ground,
+                        ShapeComponent::ShapeType::Box,
+                        Vector3{1.0f},
+                        1.0f,
+                        Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
+                    box->translate({i - 2.0f, j + 4.0f, k - 2.0f});
+                    box->syncPose();
+                }
             }
         }
     }
+
+    std::unordered_map<InputAction, std::function<void()>> actionHandlers{
+                {InputAction::FORWARD, [this]() { _cameraObject[0]->translateLocal(Vector3::zAxis(-.5f)); }},
+                {InputAction::BACKWARD, [this]() { _cameraObject[0]->translateLocal(Vector3::zAxis(.5f)); }},
+                {InputAction::LEFT, [this]() { _cameraObject[0]->translateLocal(Vector3::xAxis(-.5f)); }},
+                {InputAction::RIGHT, [this]() { _cameraObject[0]->translateLocal(Vector3::xAxis(.5f)); }},
+                {InputAction::UP, [this]() { _cameraObject[0]->translateLocal(Vector3::yAxis(.5f)); }},
+                {InputAction::DOWN, [this]() { _cameraObject[0]->translateLocal(Vector3::yAxis(-.5f)); }},
+                {InputAction::ROTATE_UP, [this]() { _cameraObject[0]->rotateX(-5.0_degf); }},
+                {InputAction::ROTATE_DOWN, [this]() { _cameraObject[0]->rotateX(5.0_degf); }},
+                {InputAction::ROTATE_LEFT, [this]() { _cameraObject[0]->rotateY(-5.0_degf); }},
+                {InputAction::ROTATE_RIGHT, [this]() { _cameraObject[0]->rotateY(5.0_degf); }},
+                   {InputAction::B, [this]() { /*printPlaces(places); printRegistery(_registry);*/ }},
+            };
     _timeline.start();
 }
 
@@ -155,25 +188,19 @@ void ServerApplication::tick() {
     _timeline.nextFrame();
 }
 
+void printPlaces(std::vector<Object3D*> places) {
+    for (Object3D* place : places) {
+        Vector3 p = place->parent()->transformationMatrix().translation();
+        std::cout << "Place position: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
+    }
+}
+
 void ServerApplication::PlayInputs() {
     //play inputs
     auto inputActions = inputState->getInputActions();
     auto inputActionsWithPosition = inputState->getInputActionsWithPosition();
     inputState->clearInputActions();
 
-    std::unordered_map<InputAction, std::function<void()>> actionHandlers{
-        {InputAction::FORWARD, [this]() { _cameraObject->translateLocal(Vector3::zAxis(-0.1f)); }},
-        {InputAction::BACKWARD, [this]() { _cameraObject->translateLocal(Vector3::zAxis(0.1f)); }},
-        {InputAction::LEFT, [this]() { _cameraObject->translateLocal(Vector3::xAxis(-0.1f)); }},
-        {InputAction::RIGHT, [this]() { _cameraObject->translateLocal(Vector3::xAxis(0.1f)); }},
-        {InputAction::UP, [this]() { _cameraObject->translateLocal(Vector3::yAxis(0.1f)); }},
-        {InputAction::DOWN, [this]() { _cameraObject->translateLocal(Vector3::yAxis(-0.1f)); }},
-        {InputAction::ROTATE_UP, [this]() { _cameraObject->rotateX(-5.0_degf); }},
-        {InputAction::ROTATE_DOWN, [this]() { _cameraObject->rotateX(5.0_degf); }},
-        {InputAction::ROTATE_LEFT, [this]() { _cameraObject->rotateY(-5.0_degf); }},
-        {InputAction::ROTATE_RIGHT, [this]() { _cameraObject->rotateY(5.0_degf); }},
-           // {InputAction::B, [this]() { printRegistery(_registry); }},
-    };
 
 
     for (auto action : inputActions) {
@@ -188,10 +215,10 @@ void ServerApplication::PlayInputs() {
     for (auto action : inputActionsWithPosition) {
         if (action.first == InputAction::MOUSE_LEFT) {
             const Vector2 position = action.second;
-            const Vector3 direction = (_cameraObject->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
+            const Vector3 direction = (_cameraObject[0]->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
 
-            auto* sphere = createAndAddEntity(ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 1.0f, 0x220000_rgbf);
-            sphere->translate(_cameraObject->absoluteTransformation().translation());
+            auto* sphere = createAndAddEntity(_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 1.0f, 0x220000_rgbf);
+            sphere->translate(_cameraObject[0]->absoluteTransformation().translation());
             sphere->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
             sphere->syncPose();
         }
@@ -201,6 +228,7 @@ void ServerApplication::PlayInputs() {
 
 
 RigidBody* ServerApplication::createAndAddEntity(
+    Object3D* parent,
     ShapeComponent::ShapeType shapeType,
     const Vector3& sizeOrRadius,
     float mass,
@@ -210,9 +238,9 @@ RigidBody* ServerApplication::createAndAddEntity(
 
     // Create the physics object based on the shape type
     if (shapeType == ShapeComponent::ShapeType::Sphere) {
-        body = _physicSystem.addSphere(sizeOrRadius.x(), mass);
+        body = _physicSystem.addSphere(parent, sizeOrRadius.x(), mass);
     } else if (shapeType == ShapeComponent::ShapeType::Box) {
-        body = _physicSystem.addBox(sizeOrRadius, mass);
+        body = _physicSystem.addBox(parent, sizeOrRadius, mass);
     }
 
     if (!body) {

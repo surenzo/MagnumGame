@@ -26,10 +26,18 @@ public:
         _bWorld.removeRigidBody(_bRigidBody.get());
     }
 
+
+
     btRigidBody& rigidBody() { return *_bRigidBody; }
 
     void syncPose() {
-        _bRigidBody->setWorldTransform(btTransform(transformationMatrix()));
+        // 1) On récupère la matrice MONDE
+        const Matrix4 worldMat = this->absoluteTransformationMatrix();
+        // 2) On transforme en btTransform
+        btTransform btTr;
+        btTr.setFromOpenGLMatrix(worldMat.data());
+        // 3) On la donne à Bullet
+        _bRigidBody->setWorldTransform(btTr);
     }
     btRigidBody& getRigidBody() {
         return *_bRigidBody;

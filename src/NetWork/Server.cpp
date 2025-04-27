@@ -56,8 +56,10 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
             // Create an ENet packet
             ENetPacket* packet = enet_packet_create(buffer.data(), buffer.size(), ENET_PACKET_FLAG_RELIABLE);
 
-            // Send the packet to the client
-            enet_peer_send(connectedClients[0], 0, packet);
+            // Send the packet to all clients
+            for (auto& client : connectedClients) {
+                enet_peer_send(client, 0, packet);
+            }
         }
 
         int result = enet_host_service(server, &event, 16);
