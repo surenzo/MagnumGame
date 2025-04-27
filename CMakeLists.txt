@@ -62,9 +62,6 @@ target_link_libraries(GameCore PUBLIC
 set_property(TARGET GameCore PROPERTY CXX_STANDARD 20)
 
 
-add_executable(MagnumBootstrap src/main.cpp)
-target_link_libraries(MagnumBootstrap PRIVATE GameCore)
-
 add_executable(Server src/main_server.cpp)
 target_link_libraries(Server PRIVATE GameCore)
 
