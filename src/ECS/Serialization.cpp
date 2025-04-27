@@ -22,7 +22,9 @@ void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
 
 void serializeColor(std::vector<uint8_t>& out, const RenderComponent& render) {
     auto color = render.color;
+    auto entityID = render.entityID;
     out.insert(out.end(), reinterpret_cast<const uint8_t*>(&color), reinterpret_cast<const uint8_t*>(&color) + sizeof(color));
+    out.insert(out.end(), reinterpret_cast<const uint8_t*>(&entityID), reinterpret_cast<const uint8_t*>(&entityID) + sizeof(entityID));
 }
 void serializeCamera(const CameraComponent& camera, std::vector<uint8_t>& out) {
     auto id = camera.id;

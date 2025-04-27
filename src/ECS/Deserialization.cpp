@@ -32,6 +32,8 @@ void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
 void deserializeColor(const uint8_t*& data, RenderComponent& render) {
     std::memcpy(&render.color, data, sizeof(render.color));
     data += sizeof(render.color);
+    std::memcpy(&render.entityID, data, sizeof(render.entityID));
+    data += sizeof(render.entityID);
 }
 
 void deserializeCamera(const uint8_t*& data, CameraComponent& camera) {

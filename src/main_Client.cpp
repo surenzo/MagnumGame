@@ -119,6 +119,8 @@ void MagnumBootstrap::drawEvent() {
 
     void printRegistery(const entt::registry& _registry) {
     auto view = _registry.view<TransformComponent, ShapeComponent, RenderComponent>();
+    //TODO : fonctionne que sur windows
+    system("cls");
     for (auto entity : view) {
         const auto& transform = view.get<TransformComponent>(entity);
         const auto& shape = view.get<ShapeComponent>(entity);
@@ -201,11 +203,12 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
     auto view = newRegistry.view<TransformComponent, ShapeComponent, RenderComponent>();
 
     for (auto entity : view) {
-        uint32_t remoteID = static_cast<uint32_t>(entity);
 
         TransformComponent transform = view.get<TransformComponent>(entity);
         ShapeComponent shape = view.get<ShapeComponent>(entity);
         RenderComponent render = view.get<RenderComponent>(entity);
+
+        float remoteID = render.entityID;
 
         if (linkingContext.contains(remoteID)) {
             entt::entity localEntity = linkingContext[remoteID];
@@ -230,9 +233,8 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
                     _renderingSystem.get()->addSphere(*object, shape.radius, render.color);
                     link->object = object;
                 }
-                link->object->resetTransformation()
-                    .translate(transform.position)
-                    .rotate(transform.rotation);
+                link->object->setTransformation(Matrix4::translation(transform.position));
+                link->object->rotateLocal(transform.rotation);
             }
             else
                 std::cerr << "Object not found for entity " << static_cast<unsigned int>(localEntity) << std::endl;
@@ -253,21 +255,19 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
             // auto* object = new SceneGraph::Object<SceneGraph::MatrixTransformation3D>{scene};
             // object->translate(transform.position)
             //       .rotate(transform.rotation);
-            RigidBody* object;
+            auto* object = new Object3D{_physicSystem.getScene()};
             switch (shape.type) {
                 case ShapeComponent::ShapeType::Sphere:
                     std::cout << "Creating sphere" << std::endl;
-                    object = _physicSystem.addSphere(shape.radius, shape.mass);
+                    // add object3D to the scene
                     _renderingSystem.get()->addSphere(*object, shape.radius, render.color);
                     break;
                 case ShapeComponent::ShapeType::Box:
-                    object = _physicSystem.addBox(shape.size, shape.mass);
                     _renderingSystem.get()->addBox(*object, shape.size, render.color);
                     break;
             }
-            object->translate(transform.position);
-            object->rotate(transform.rotation);
-            object->syncPose();
+            object->setTransformation(Matrix4::translation(transform.position));
+            object->rotateLocal(transform.rotation);
 
             _registry.emplace<ObjectLinkComponent>(localEntity, object);
         }
@@ -283,11 +283,8 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
         if (camera.id != 0)
             continue;
 
-
-        //change the camera position
-        _cameraObject->resetTransformation()
-            .translate(transform.position)
-            .rotate(transform.rotation);
+        _cameraObject->setTransformation(Matrix4::translation(transform.position));
+        _cameraObject->rotateLocal(transform.rotation);
     }
 
 

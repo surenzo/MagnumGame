@@ -24,6 +24,7 @@ struct ShapeComponent {
 
 struct RenderComponent {
     Magnum::Color3 color;
+    float entityID; // ID de l'entité pour le rendu
     // autre info de rendu
 };
 
