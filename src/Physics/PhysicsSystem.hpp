@@ -15,7 +15,7 @@ public:
     PhysicsSystem();
     ~PhysicsSystem();
 
-    void update(float dt);
+    void update(float dt, std::vector<Object3D*> entitesToDestroy);
 
     btDiscreteDynamicsWorld* getWorld() { return &_bWorld; }
     Scene3D* getScene() { return &_scene; }

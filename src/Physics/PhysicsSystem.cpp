@@ -30,12 +30,12 @@ RigidBody* PhysicsSystem::addSphere(float radius, float mass) {
     o->syncPose();
     return o;
 }
-void PhysicsSystem::update(float dt){
+void PhysicsSystem::update(float dt, std::vector<Object3D*> entitesToDestroy){
 
     for(Object3D* obj = _scene.children().first(); obj; ) {
         Object3D* next = obj->nextSibling();
         if(obj->transformation().translation().dot() > 100*100)
-            delete obj;
+            entitesToDestroy.push_back(obj);
         obj = next;
     }
 

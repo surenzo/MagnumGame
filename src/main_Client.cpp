@@ -110,7 +110,6 @@ void MagnumBootstrap::drawEvent() {
         return;
     }
 
-    _physicSystem.getWorld()->stepSimulation( _timeline.previousFrameDuration(), 5);
     _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
 
     swapBuffers();
@@ -118,6 +117,19 @@ void MagnumBootstrap::drawEvent() {
     redraw();
 }
 
+    void printRegistery(const entt::registry& _registry) {
+    auto view = _registry.view<TransformComponent, ShapeComponent, RenderComponent>();
+    for (auto entity : view) {
+        const auto& transform = view.get<TransformComponent>(entity);
+        const auto& shape = view.get<ShapeComponent>(entity);
+        const auto& render = view.get<RenderComponent>(entity);
+
+        std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
+        std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
+        std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
+        std::cout << "  Shape: " << (shape.type == ShapeComponent::ShapeType::Sphere ? "Sphere" : "Box") << "\n";
+    }
+}
 void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
     static const std::unordered_map<Key, std::function<void()>> keyActions{
     {Key::W, [this]() { inputState->addInputAction(InputAction::FORWARD); }},
@@ -130,6 +142,7 @@ void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
     {Key::Up, [this]() { inputState->addInputAction(InputAction::ROTATE_UP); }},
     {Key::Left, [this]() { inputState->addInputAction(InputAction::ROTATE_LEFT); }},
     {Key::Right, [this]() { inputState->addInputAction(InputAction::ROTATE_RIGHT); }},
+    {Key::B, [this]() { inputState->addInputAction(InputAction::B); printRegistery(_registry); }},
     {Key::C, [this]() {
             if (_drawCubes && _drawDebug) {
                 _drawDebug = false;

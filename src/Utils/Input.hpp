@@ -14,6 +14,7 @@ enum class InputAction {
     ROTATE_UP,
     ROTATE_DOWN,
     MOUSE_LEFT,
+    B,
 };
 
 

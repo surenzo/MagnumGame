@@ -83,6 +83,38 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
             ground
         );
     }
+    {
+        auto* ground = _physicSystem.addSphere(10.f, 0.0f);
+        ground->getRigidBody().setWorldTransform(btTransform::getIdentity());
+
+        auto groundEntity = _registry.create();
+
+        _registry.emplace<TransformComponent>(
+            groundEntity,
+            ground->transformationMatrix().translation(),
+            Quaternion::fromMatrix(ground->transformationMatrix().rotation())
+        );
+
+        _registry.emplace<ShapeComponent>(
+            groundEntity,
+            ShapeComponent::ShapeType::Sphere,
+            0.0f, // masse
+            Vector3{20.0f, 0.5f, 20.0f},
+            10.f
+        );
+
+        _registry.emplace<RenderComponent>(
+            groundEntity,
+            Color3{0.2f, 0.2f, 0.2f}
+        );
+
+        _registry.emplace<PhysicsLinkComponent>(
+            groundEntity,
+            ground
+        );
+
+
+    }
 
     Deg hue = 42.0_degf;
     // 2. Boîtes empilées
@@ -155,6 +187,19 @@ void ServerApplication::loop() {
     }
 }
 
+void printRegistery(const entt::registry& _registry) {
+    auto view = _registry.view<TransformComponent, ShapeComponent, RenderComponent>();
+    for (auto entity : view) {
+        const auto& transform = view.get<TransformComponent>(entity);
+        const auto& shape = view.get<ShapeComponent>(entity);
+        const auto& render = view.get<RenderComponent>(entity);
+
+        std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
+        std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
+        std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
+        std::cout << "  Shape: " << (shape.type == ShapeComponent::ShapeType::Sphere ? "Sphere" : "Box") << "\n";
+    }
+}
 void ServerApplication::tick() {
     //play inputs
     auto inputActions = inputState->getInputActions();
@@ -175,8 +220,10 @@ void ServerApplication::tick() {
         {InputAction::ROTATE_UP, [this]() { _cameraObject->rotateX(-5.0_degf); }},
         {InputAction::ROTATE_DOWN, [this]() { _cameraObject->rotateX(5.0_degf); }},
         {InputAction::ROTATE_LEFT, [this]() { _cameraObject->rotateY(-5.0_degf); }},
-        {InputAction::ROTATE_RIGHT, [this]() { _cameraObject->rotateY(5.0_degf); }}
+        {InputAction::ROTATE_RIGHT, [this]() { _cameraObject->rotateY(5.0_degf); }},
+           {InputAction::B, [this]() { printRegistery(_registry); }},
     };
+
 
     for (auto action : inputActions) {
         auto it = actionHandlers.find(action);
@@ -239,12 +286,32 @@ void ServerApplication::tick() {
     auto packet = serializeRegistry(_registry);
     objectState->setWorld(packet);
 
-    _physicSystem.update(_timeline.previousFrameDuration());
+
+    std::vector<Object3D*> entitesToDestroy;
+    _physicSystem.update(_timeline.previousFrameDuration(), entitesToDestroy);
+
+    for (auto obj : entitesToDestroy) {
+        // remove the object from the scene
+        delete obj;
+        // remove the object from the registry
+        auto view = _registry.view<PhysicsLinkComponent>();
+        for (auto entity : view) {
+            if (view.get<PhysicsLinkComponent>(entity).body == obj) {
+                _registry.destroy(entity);
+                break;
+            }
+        }
+        std::cout << "Object destroyed" << std::endl;
+        std::flush(std::cout);
+    }
+
+
     // Here you can add code to send the state of the objects to the clients
     // For example, serialize the positions and rotations of the objects and send them over the network
     // You can use your serialization functions from Serialization.hpp
     _timeline.nextFrame();
 }
+
 
 
 int main() {
