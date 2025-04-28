@@ -14,12 +14,13 @@ class ServerApplication {
 public:
     ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates);
     void updateRegistry();
-    void loop();
+    int loop();
     void tick();
 private:
-    RigidBody* createAndAddEntity(Object3D* parent, ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
+    RigidBody* createAndAddEntity(int player, Object3D* parent, ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
     void startGame();
     void PlayInputs();
+    void decrement_cubes(entt::registry& registry, entt::entity entity);
 
     Timeline _timeline;
     entt::registry _registry;
@@ -32,6 +33,7 @@ private:
     float entityID = 0;
     std::shared_ptr<Shared_Input> inputState = std::make_shared<Shared_Input>();
     std::shared_ptr<Shared_Objects> objectState = std::make_shared<Shared_Objects>();
+    std::vector<int> nbOfCubes;
 };
 
 // void printRegistery(const entt::registry& _registry){
@@ -75,6 +77,7 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
     startGame();
 }
 void ServerApplication::startGame() {
+    nbOfCubes.resize(4);
     // Create 4 parent objects for the 4 players (platforms)
     for (int i = 0; i < 4; ++i) {
         auto cameraEntity = _registry.create();
@@ -107,7 +110,7 @@ void ServerApplication::startGame() {
         _registry.emplace<CameraComponent>(cameraEntity, /*id=*/i);
         _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject[i]);
 
-        auto ground = createAndAddEntity(_physicSystem.getScene(), ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
+        auto ground = createAndAddEntity(-1,_physicSystem.getScene(), ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
         ground->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
         ground->syncPose();
         Deg hue = 42.0_degf;
@@ -116,6 +119,7 @@ void ServerApplication::startGame() {
             for (Int j = 0; j != 5; ++j) {
                 for (Int k = 0; k != 5; ++k) {
                     auto box = createAndAddEntity(
+                        i,
                         _physicSystem.getScene(),
                         ShapeComponent::ShapeType::Box,
                         Vector3{1.0f},
@@ -170,11 +174,24 @@ void ServerApplication::updateRegistry() {
     }
 }
 
-void ServerApplication::loop() {
-    while (true) {
+int ServerApplication::loop() {
+    bool running = true;
+    int winner = -1;
+    while (running) {
         tick();
+        for ( int i = 0; i < nbOfCubes.size(); ++i) {
+            if (nbOfCubes[i] == 0) {
+                std::cout << "Player " << i << " wins!" << std::endl;
+                winner = i;
+                running = false;
+                break;
+            }
+            else
+                std::cout << "Player " << i << " has " << nbOfCubes[i] << " cubes left." << std::endl;
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Sleep for 3ms to limit CPU usage
     }
+    return winner;
 }
 
 void ServerApplication::tick() {
@@ -185,16 +202,16 @@ void ServerApplication::tick() {
     objectState->setWorld(packet);
 
 
-    std::vector<Object3D*> entitesToDestroy;
-    _physicSystem.update(_timeline.previousFrameDuration(), entitesToDestroy);
+    std::vector<Object3D*> entitesToDestroy = _physicSystem.update(_timeline.previousFrameDuration());
 
     for (auto obj : entitesToDestroy) {
         // remove the object from the scene
         delete obj;
         // remove the object from the registry
-        auto view = _registry.view<PhysicsLinkComponent>();
+        auto view = _registry.view<PhysicsLinkComponent,PlayerLinkComponent>();
         for (auto entity : view) {
             if (view.get<PhysicsLinkComponent>(entity).body == obj) {
+                nbOfCubes[view.get<PlayerLinkComponent>(entity).id]--;
                 _registry.destroy(entity);
                 break;
             }
@@ -230,7 +247,7 @@ void ServerApplication::PlayInputs() {
             const int player = std::get<2>(action);
             const Vector3 direction = (_cameraObject[player]->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
 
-            auto* sphere = createAndAddEntity(_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 5.0f, 0x220000_rgbf);
+            auto* sphere = createAndAddEntity(-1,_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 5.0f, 0x220000_rgbf);
 
             sphere->translate(_cameraObject[player]->absoluteTransformation().translation());
             sphere->syncPose();
@@ -242,6 +259,7 @@ void ServerApplication::PlayInputs() {
 
 
 RigidBody* ServerApplication::createAndAddEntity(
+    int player,
     Object3D* parent,
     ShapeComponent::ShapeType shapeType,
     const Vector3& sizeOrRadius,
@@ -290,6 +308,13 @@ RigidBody* ServerApplication::createAndAddEntity(
         entity,
         body
     );
+    if (player != -1) {
+        _registry.emplace<PlayerLinkComponent>(
+            entity,
+            player
+        );
+        nbOfCubes[player]++;
+    }
 
     return body;
 }

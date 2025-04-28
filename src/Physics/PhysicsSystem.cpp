@@ -52,16 +52,16 @@ RigidBody* PhysicsSystem::addSphere(Object3D* parent, float radius, float mass) 
     o->syncPose();
     return o;
 }
-void PhysicsSystem::update(float dt, std::vector<Object3D*> entitesToDestroy){
-
+auto PhysicsSystem::update(float dt) -> std::vector<Object3D *> {
+    std::vector<Object3D*> entitesToDestroy;
     for(Object3D* obj = _scene.children().first(); obj; ) {
         Object3D* next = obj->nextSibling();
         if(obj->transformation().translation().dot() > 100*100)
             entitesToDestroy.push_back(obj);
         obj = next;
     }
-
     _bWorld.stepSimulation(dt, 5);
+    return entitesToDestroy;
   }
 
 

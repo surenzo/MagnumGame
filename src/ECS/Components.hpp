@@ -22,6 +22,10 @@ struct ShapeComponent {
     float radius; // Utilisé pour les sphères
 };
 
+struct PlayerLinkComponent {
+    int id; // ID du joueur
+};
+
 struct RenderComponent {
     Magnum::Color3 color;
     float entityID; // ID de l'entité pour le rendu
