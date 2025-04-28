@@ -110,8 +110,8 @@ void ServerApplication::startGame() {
         _registry.emplace<CameraComponent>(cameraEntity, /*id=*/i);
         _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject[i]);
 
-        auto ground = createAndAddEntity(-1,_physicSystem.getScene(), ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
-        ground->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
+        auto ground = createAndAddEntity(-1,_physicSystem.getScene(), ShapeComponent::ShapeType::Box, {15.0f, 1.0f, 15.0f}, 0.0f, 0x220000_rgbf);
+        ground->translate(Vector3(40.0f * (i % 2), -1.0f, 40.0f * (i / 2)));
         ground->syncPose();
         Deg hue = 42.0_degf;
         // Stacked boxes
@@ -186,8 +186,6 @@ int ServerApplication::loop() {
                 running = false;
                 break;
             }
-            else
-                std::cout << "Player " << i << " has " << nbOfCubes[i] << " cubes left." << std::endl;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Sleep for 3ms to limit CPU usage
     }
@@ -216,8 +214,6 @@ void ServerApplication::tick() {
                 break;
             }
         }
-        std::cout << "Object destroyed" << std::endl;
-        std::flush(std::cout);
     }
 
 
