@@ -31,6 +31,7 @@ public:
     btRigidBody& rigidBody() { return *_bRigidBody; }
 
     void syncPose() {
+
         // 1) On récupère la matrice MONDE
         const Matrix4 worldMat = this->absoluteTransformationMatrix();
         // 2) On transforme en btTransform

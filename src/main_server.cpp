@@ -26,123 +26,15 @@ private:
 
     PhysicsSystem _physicSystem;
     std::vector<Object3D*> _cameraRig, _cameraObject;
-    std::vector<Object3D*> places;
 
-    std::unordered_map<InputAction, std::function<void()>> actionHandlers;
+    std::unordered_map<InputAction, std::function<void(int)>> actionHandlers;
 
     float entityID = 0;
     std::shared_ptr<Shared_Input> inputState = std::make_shared<Shared_Input>();
     std::shared_ptr<Shared_Objects> objectState = std::make_shared<Shared_Objects>();
 };
 
-ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates){
-    _registry = entt::registry();
-    inputState = inputStates;
-    objectState = objectStates;
-    // add new entity to the registry
-
-    startGame();
-}
-void ServerApplication::startGame() {
-    // Create 4 parent objects for the 4 players (platforms)
-    std::vector<Object3D*> parents;
-    for (int i = 0; i < 4; ++i) {
-        // Dynamically allocate Object3D instances
-        parents.emplace_back(new Object3D{_physicSystem.getScene()});
-        parents[i]
-            ->translate(Vector3::xAxis(20.0f * (i % 2)))
-            .translate(Vector3::zAxis(20.0f * (i / 2)));
-        Vector3 p = parents[i]->transformationMatrix().translation();
-        std::cout << "Parent #" << i << " world pos = " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
-        auto cameraEntity = _registry.create();
-
-        _cameraRig.emplace_back(new Object3D{parents[i]});
-        _cameraRig[i]
-            ->translate(Vector3::yAxis(3.0f))
-            .rotateY(40.0_degf);
-
-        _cameraObject.emplace_back(new Object3D{_cameraRig[i]});
-        _cameraObject[i]
-            ->translate(Vector3::zAxis(20.0f))
-            .rotateX(-25.0_degf);
-
-        Matrix4 cameraTransform = _cameraObject[i]->transformationMatrix();
-        Vector3 position = cameraTransform.translation();
-        Quaternion rotation = Quaternion::fromMatrix(cameraTransform.rotation());
-
-        _registry.emplace<TransformComponent>(cameraEntity, position, rotation);
-        _registry.emplace<CameraComponent>(cameraEntity, /*id=*/i);
-        _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject[i]);
-
-        auto ground = createAndAddEntity(parents[i], ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
-
-        places.emplace_back(ground);
-        Deg hue = 42.0_degf;
-        // Stacked boxes
-        for (Int i = 0; i != 5; ++i) {
-            for (Int j = 0; j != 5; ++j) {
-                for (Int k = 0; k != 5; ++k) {
-                    auto box = createAndAddEntity(
-                        ground,
-                        ShapeComponent::ShapeType::Box,
-                        Vector3{1.0f},
-                        1.0f,
-                        Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
-                    box->translate({i - 2.0f, j + 4.0f, k - 2.0f});
-                    box->syncPose();
-                }
-            }
-        }
-    }
-
-    std::unordered_map<InputAction, std::function<void()>> actionHandlers{
-                {InputAction::FORWARD, [this]() { _cameraObject[0]->translateLocal(Vector3::zAxis(-.5f)); }},
-                {InputAction::BACKWARD, [this]() { _cameraObject[0]->translateLocal(Vector3::zAxis(.5f)); }},
-                {InputAction::LEFT, [this]() { _cameraObject[0]->translateLocal(Vector3::xAxis(-.5f)); }},
-                {InputAction::RIGHT, [this]() { _cameraObject[0]->translateLocal(Vector3::xAxis(.5f)); }},
-                {InputAction::UP, [this]() { _cameraObject[0]->translateLocal(Vector3::yAxis(.5f)); }},
-                {InputAction::DOWN, [this]() { _cameraObject[0]->translateLocal(Vector3::yAxis(-.5f)); }},
-                {InputAction::ROTATE_UP, [this]() { _cameraObject[0]->rotateX(-5.0_degf); }},
-                {InputAction::ROTATE_DOWN, [this]() { _cameraObject[0]->rotateX(5.0_degf); }},
-                {InputAction::ROTATE_LEFT, [this]() { _cameraObject[0]->rotateY(-5.0_degf); }},
-                {InputAction::ROTATE_RIGHT, [this]() { _cameraObject[0]->rotateY(5.0_degf); }},
-                   {InputAction::B, [this]() { /*printPlaces(places); printRegistery(_registry);*/ }},
-            };
-    _timeline.start();
-}
-
-void ServerApplication::updateRegistry() {
-    // Sync des objets physiques (rigidbodies)
-    auto physicsView = _registry.view<TransformComponent, PhysicsLinkComponent>();
-    for (auto entity : physicsView) {
-        auto& transform = physicsView.get<TransformComponent>(entity);
-        auto* body = physicsView.get<PhysicsLinkComponent>(entity).body;
-
-        const auto& matrix = body->transformationMatrix();
-        transform.position = matrix.translation();
-        transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
-    }
-
-    // Sync des caméras attachées à des objets 3D
-    auto cameraView = _registry.view<TransformComponent, CameraLinkComponent>();
-    for (auto entity : cameraView) {
-        auto& transform = cameraView.get<TransformComponent>(entity);
-        auto* cameraObject = cameraView.get<CameraLinkComponent>(entity).cameraObject;
-
-        const auto& matrix = cameraObject->transformation();
-        transform.position = matrix.translation();
-        transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
-    }
-}
-
-void ServerApplication::loop() {
-    while (true) {
-        tick();
-        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // approx 60 FPS
-    }
-}
-
-// void printRegistery(const entt::registry& _registry) {
+// void printRegistery(const entt::registry& _registry){
 //     //clear std::cout
 //     //TODO : fonctionne que sur windows
 //     system("cls");
@@ -158,6 +50,124 @@ void ServerApplication::loop() {
 //         std::cout << "  Shape: " << (shape.type == ShapeComponent::ShapeType::Sphere ? "Sphere" : "Box") << "\n";
 //     }
 // }
+
+void printRegistery(const entt::registry& _registry){
+    //clear std::cout
+    //TODO : fonctionne que sur windows
+    system("cls");
+    auto view = _registry.view<TransformComponent, CameraComponent>();
+    for (auto entity : view) {
+        const auto& transform = view.get<TransformComponent>(entity);
+        const auto& camera = view.get<CameraComponent>(entity);
+
+        std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
+        std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
+        std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
+        std::cout << "  Camera ID: " << camera.id << "\n";
+    }
+}
+ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates){
+    _registry = entt::registry();
+    inputState = inputStates;
+    objectState = objectStates;
+    // add new entity to the registry
+
+    startGame();
+}
+void ServerApplication::startGame() {
+    // Create 4 parent objects for the 4 players (platforms)
+    for (int i = 0; i < 4; ++i) {
+        auto cameraEntity = _registry.create();
+
+        _cameraRig.emplace_back(new Object3D{_physicSystem.getScene()});
+        _cameraRig[i]
+            ->translateLocal(Vector3::yAxis(3.0f))
+            .rotateYLocal(45.0_degf);
+
+        _cameraObject.emplace_back(new Object3D{_cameraRig[i]});
+        _cameraObject[i]
+            ->translateLocal(Vector3::zAxis(20.0f))
+            .rotateXLocal(-25.0_degf);
+
+        Matrix4 cameraTransform = _cameraObject[i]->absoluteTransformationMatrix();
+        Vector3 position = cameraTransform.translation();
+        Quaternion rotation = Quaternion::fromMatrix(cameraTransform.rotation());
+
+
+        _registry.emplace<TransformComponent>(cameraEntity, position, rotation);
+        _registry.emplace<CameraComponent>(cameraEntity, /*id=*/i);
+        _registry.emplace<CameraLinkComponent>(cameraEntity, _cameraObject[i]);
+
+        auto ground = createAndAddEntity(_physicSystem.getScene(), ShapeComponent::ShapeType::Box, {15.0f, 0.5f, 15.0f}, 0.0f, 0x220000_rgbf);
+        ground->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
+        ground->syncPose();
+        Deg hue = 42.0_degf;
+        // Stacked boxes
+        for (Int i = 0; i != 5; ++i) {
+            for (Int j = 0; j != 5; ++j) {
+                for (Int k = 0; k != 5; ++k) {
+                    auto box = createAndAddEntity(
+                        _physicSystem.getScene(),
+                        ShapeComponent::ShapeType::Box,
+                        Vector3{1.0f},
+                        1.0f,
+                        Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
+                    box->translate({i - 2.0f, j + 3.0f, k - 2.0f});
+                    box->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
+
+                    box->syncPose();
+                }
+            }
+        }
+    }
+
+    actionHandlers = std::unordered_map<InputAction, std::function<void(int)>> {
+                {InputAction::FORWARD, [this](int player) { _cameraObject[player]->translateLocal(Vector3::zAxis(-.5f)); }},
+                {InputAction::BACKWARD, [this](int player) { _cameraObject[player]->translateLocal(Vector3::zAxis(.5f)); }},
+                {InputAction::LEFT, [this](int player) { _cameraObject[player]->translateLocal(Vector3::xAxis(-.5f)); }},
+                {InputAction::RIGHT, [this](int player) { _cameraObject[player]->translateLocal(Vector3::xAxis(.5f)); }},
+                {InputAction::UP, [this](int player) { _cameraObject[player]->translateLocal(Vector3::yAxis(.5f)); }},
+                {InputAction::DOWN, [this](int player) { _cameraObject[player]->translateLocal(Vector3::yAxis(-.5f)); }},
+                {InputAction::ROTATE_UP, [this](int player) { _cameraObject[player]->rotateX(-5.0_degf); }},
+                {InputAction::ROTATE_DOWN, [this](int player) { _cameraObject[player]->rotateX(5.0_degf); }},
+                {InputAction::ROTATE_LEFT, [this](int player) { _cameraObject[player]->rotateY(-5.0_degf); }},
+                {InputAction::ROTATE_RIGHT, [this](int player) { _cameraObject[player]->rotateY(5.0_degf); }},
+                   {InputAction::B, [this](int player) { /*printPlaces(places);*/ printRegistery(_registry); }},
+            };
+    _timeline.start();
+}
+
+void ServerApplication::updateRegistry() {
+    // Sync des objets physiques (rigidbodies)
+    auto physicsView = _registry.view<TransformComponent, PhysicsLinkComponent>();
+    for (auto entity : physicsView) {
+        auto& transform = physicsView.get<TransformComponent>(entity);
+        auto* body = physicsView.get<PhysicsLinkComponent>(entity).body;
+
+        const auto& matrix = body->absoluteTransformationMatrix();
+        transform.position = matrix.translation();
+        transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
+    }
+
+    // Sync des caméras attachées à des objets 3D
+    auto cameraView = _registry.view<TransformComponent, CameraLinkComponent>();
+    for (auto entity : cameraView) {
+        auto& transform = cameraView.get<TransformComponent>(entity);
+        auto* cameraObject = cameraView.get<CameraLinkComponent>(entity).cameraObject;
+
+        const auto& matrix = cameraObject->absoluteTransformationMatrix();
+        transform.position = matrix.translation();
+        transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
+    }
+}
+
+void ServerApplication::loop() {
+    while (true) {
+        tick();
+        std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Sleep for 3ms to limit CPU usage
+    }
+}
+
 void ServerApplication::tick() {
 
     PlayInputs();
@@ -187,40 +197,35 @@ void ServerApplication::tick() {
 
     _timeline.nextFrame();
 }
-
-void printPlaces(std::vector<Object3D*> places) {
-    for (Object3D* place : places) {
-        Vector3 p = place->parent()->transformationMatrix().translation();
-        std::cout << "Place position: " << p.x() << ", " << p.y() << ", " << p.z() << std::endl;
-    }
-}
-
 void ServerApplication::PlayInputs() {
     //play inputs
-    auto inputActions = inputState->getInputActions();
-    auto inputActionsWithPosition = inputState->getInputActionsWithPosition();
-    inputState->clearInputActions();
+    auto inputActions = inputState->getInputActionsWithPlayer();
+    auto inputActionsWithPosition = inputState->getInputActionsWithPositionWithPlayer();
+    inputState->clearInputActionsWithPlayer();
 
-
-
+    //std::cout << "Nombres d'Input actions: " << inputActions.size() << " ," << inputActionsWithPosition.size() << std::endl;
     for (auto action : inputActions) {
-        auto it = actionHandlers.find(action);
+        auto it = actionHandlers.find(action.first);
         if (it != actionHandlers.end()) {
-            it->second(); // Execute the corresponding action
+            it->second(action.second); // Execute the corresponding action
         }
+        else
+            std::cout << "Action not found: " << static_cast<int>(action.first) << std::endl;
     }
 
     //do this if there is a click :
 
     for (auto action : inputActionsWithPosition) {
-        if (action.first == InputAction::MOUSE_LEFT) {
-            const Vector2 position = action.second;
-            const Vector3 direction = (_cameraObject[0]->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
+        if (std::get<0>(action) == InputAction::MOUSE_LEFT) {
+            const Vector2 position = std::get<1>(action);
+            const int player = std::get<2>(action);
+            const Vector3 direction = (_cameraObject[player]->absoluteTransformation().rotationScaling() * Vector3{position, -1.0f}).normalized();
 
-            auto* sphere = createAndAddEntity(_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 1.0f, 0x220000_rgbf);
-            sphere->translate(_cameraObject[0]->absoluteTransformation().translation());
-            sphere->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
+            auto* sphere = createAndAddEntity(_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 5.0f, 0x220000_rgbf);
+
+            sphere->setTransformation(Matrix4::translation(_cameraObject[player]->absoluteTransformation().translation()));
             sphere->syncPose();
+            sphere->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
         }
     }
 }
@@ -291,6 +296,9 @@ int main(int argc, char** argv) {
         return -1;
 
     server.run(inputStates, objectStates);
+    while (!server.canStartGame()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
     app.loop();
 
 

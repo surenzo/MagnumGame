@@ -60,11 +60,13 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
             // uint8_t data[sizeof(action)];
             // TODO : :D
             uint8_t type = 0;
+            uint8_t player = static_cast<uint8_t>(playerNumber);
             uint8_t data = static_cast<uint8_t>(action);
             //fusionne data et type
-            uint8_t buffer[2];
+            uint8_t buffer[3];
             buffer[0] = type;
-            buffer[1] = data;
+            buffer[1] = player;
+            buffer[2] = data;
             // Créer un paquet ENet
             ENetPacket* packet = enet_packet_create(&buffer, sizeof(buffer), ENET_PACKET_FLAG_RELIABLE);
             // Envoyer le paquet au serveur
@@ -75,13 +77,15 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
             // create packet with a tableau of uint8_t
             // uint8_t data[sizeof(action)];
             // TODO : :D
-            uint8_t type = 2;
+            uint8_t type = 2; // possible d'optimiser en ajoutant ici le numero du joueur
+            uint8_t player = static_cast<uint8_t>(playerNumber);
             uint8_t data = static_cast<uint8_t>(action.first);
             //fusionne data et type
-            uint8_t buffer[2 + sizeof(action.second)];
+            uint8_t buffer[3 + sizeof(action.second)];
             buffer[0] = type;
-            buffer[1] = data;
-            memcpy(buffer + 2, &action.second, sizeof(action.second));
+            buffer[1] = player;
+            buffer[2] = data;
+            memcpy(buffer + 3, &action.second, sizeof(action.second));
             // Créer un paquet ENet
             ENetPacket* packet = enet_packet_create(&buffer, sizeof(buffer), ENET_PACKET_FLAG_RELIABLE);
             // Envoyer le paquet au serveur
@@ -111,6 +115,10 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                         // Deserialize the action
                         std::vector<uint8_t> buffer(data + 1, data + dataSize);
                         objectState->setWorld(buffer);
+                    }
+                    if (data[0] == 3) { // its a welcome message
+                        playerNumber = data[1];
+                        std::cout << "Welcome to the game! You are player number " << static_cast<int>(playerNumber) << "\n";
                     }
                     enet_packet_destroy(event.packet);
                 break;

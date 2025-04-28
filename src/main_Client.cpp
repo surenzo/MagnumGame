@@ -22,7 +22,7 @@ typedef SceneGraph::Scene<SceneGraph::MatrixTransformation3D> Scene3D;
 
 class MagnumBootstrap: public Platform::Application {
 public:
-    explicit MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates);
+    explicit MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates, int playerNumber);
 
 private:
     void drawEvent() override;
@@ -50,7 +50,7 @@ private:
     int player;
 };
 
-MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates): Platform::Application(arguments, NoCreate) {
+MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates, int playerNumber): Platform::Application(arguments, NoCreate){
     //config pas toucher --
     const Vector2 dpiScaling = this->dpiScaling({});
     Configuration conf;
@@ -61,8 +61,7 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
     if(!tryCreate(conf, glConf))
         create(conf, glConf.setSampleCount(0));
     // -------
-
-    player = 0;
+    player = playerNumber;
     inputState = inputStates;
     objectState = objectStates;
     _renderingSystem = std::make_unique<RenderingSystem>();
@@ -78,7 +77,7 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
         .rotateX(-25.0_degf);
     (_camera = new SceneGraph::BasicCamera3D<float>(*_cameraObject))
         ->setAspectRatioPolicy(SceneGraph::AspectRatioPolicy::Extend)
-        .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 100.0f))
+        .setProjectionMatrix(Matrix4::perspectiveProjection(35.0_degf, 1.0f, 0.001f, 200.0f))
         .setViewport(GL::defaultFramebuffer.viewport().size());
 
     setSwapInterval(1);
@@ -124,6 +123,21 @@ void MagnumBootstrap::drawEvent() {
 //         std::cout << "  Shape: " << (shape.type == ShapeComponent::ShapeType::Sphere ? "Sphere" : "Box") << "\n";
 //     }
 // }
+    void printRegistery(const entt::registry& _registry){
+    //clear std::cout
+    //TODO : fonctionne que sur windows
+    system("cls");
+    auto view = _registry.view<TransformComponent, CameraComponent>();
+    for (auto entity : view) {
+        const auto& transform = view.get<TransformComponent>(entity);
+        const auto& camera = view.get<CameraComponent>(entity);
+
+        std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
+        std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
+        std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
+        std::cout << "  Camera ID: " << camera.id << "\n";
+    }
+}
 void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
     static const std::unordered_map<Key, std::function<void()>> keyActions{
     {Key::W, [this]() { inputState->addInputAction(InputAction::FORWARD); }},
@@ -138,7 +152,7 @@ void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
     {Key::Right, [this]() { inputState->addInputAction(InputAction::ROTATE_RIGHT); }},
         // if i press Y change the player to player 1
     {Key::Y, [this]() {player= (player+1)%4;}},
-     {Key::B, [this]() { inputState->addInputAction(InputAction::B); /*printRegistery(_registry);*/ }},
+     {Key::B, [this]() { inputState->addInputAction(InputAction::B); printRegistery(_registry); }},
     {Key::C, [this]() {
             if (_drawCubes && _drawDebug) {
                 _drawDebug = false;
@@ -233,7 +247,7 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
         CameraComponent camera = view2.get<CameraComponent>(entity);
         if (camera.id != player)
             continue;
-
+        //std::cout << "Camera ID: " << camera.id << std::endl;
         _cameraObject->setTransformation(Matrix4::translation(transform.position));
         _cameraObject->rotateLocal(transform.rotation);
     }
@@ -267,8 +281,12 @@ int  main(int argc, char** argv) {
 
     // ici tu peux boucler pour interagir ou juste tester la connexion
     client.run(inputStates, ObjectStates);
+    int playerNumber;
+    while ((playerNumber = client.getPlayerNumber()) == -1) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
     Magnum::Platform::Application::Arguments arguments(argc, argv);
-    Game::MagnumBootstrap app(arguments, inputStates, ObjectStates);
+    Game::MagnumBootstrap app(arguments, inputStates, ObjectStates, playerNumber);
     app.exec();
     return 0;
 }
