@@ -42,6 +42,8 @@ target_include_directories(GameCore PUBLIC
         externals/enet/include
 )
 
+include_directories(${CMAKE_SOURCE_DIR}/externals)
+
 target_link_libraries(GameCore PUBLIC
         Magnum::Application
         Magnum::GL
@@ -61,6 +63,10 @@ target_link_libraries(GameCore PUBLIC
         enet
 )
 set_property(TARGET GameCore PROPERTY CXX_STANDARD 20)
+
+# Définition de l'exécutable principal
+add_executable(MagnumBootstrap src/main.cpp)
+target_link_libraries(MagnumBootstrap PRIVATE GameCore)
 
 add_executable(Server src/main_server.cpp)
 target_link_libraries(Server PRIVATE GameCore)
