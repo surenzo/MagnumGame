@@ -70,8 +70,7 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
 
     // probablement a changer
     (*(_cameraRig = new Object3D{&_scene}))
-        .translate(Vector3::yAxis(3.0f))
-        .rotateY(40.0_degf);
+        .translate(Vector3::yAxis(3.0f));
     (*(_cameraObject = new Object3D{_cameraRig}))
         .translate(Vector3::zAxis(20.0f))
         .rotateX(-25.0_degf);

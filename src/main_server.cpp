@@ -81,15 +81,24 @@ void ServerApplication::startGame() {
 
         _cameraRig.emplace_back(new Object3D{_physicSystem.getScene()});
         _cameraRig[i]
-            ->translateLocal(Vector3::yAxis(3.0f))
-            .rotateYLocal(45.0_degf);
+            ->translateLocal(Vector3::yAxis(3.0f));
 
         _cameraObject.emplace_back(new Object3D{_cameraRig[i]});
         _cameraObject[i]
-            ->translateLocal(Vector3::zAxis(20.0f))
+            ->translate(Vector3(40.0f * (i % 2), 8.0f, 40.0f * (i / 2)))
             .rotateXLocal(-25.0_degf);
 
-        Matrix4 cameraTransform = _cameraObject[i]->absoluteTransformationMatrix();
+        Matrix4 cameraMatrix = Matrix4::lookAt(
+            _cameraObject[i]->transformationMatrix().translation(), // Position de la caméra
+            Vector3{20.0f, 0.0f, 20.0f}, // Point que la caméra regarde
+            Vector3{0.0f, 1.0f, 0.0f}  // Vecteur "up" (généralement l'axe Y)
+        );
+        std::cout << "Camera position : " << _cameraObject[i]->transformationMatrix().translation().x() << ", " << _cameraObject[i]->transformationMatrix().translation().y() << ", " << _cameraObject[i]->transformationMatrix().translation().z() << std::endl;
+
+        // Ensuite, vous pouvez utiliser cette matrice pour orienter votre caméra
+        _cameraObject[i]->setTransformation(cameraMatrix);
+
+        Matrix4 cameraTransform = _cameraObject[i]->transformationMatrix();
         Vector3 position = cameraTransform.translation();
         Quaternion rotation = Quaternion::fromMatrix(cameraTransform.rotation());
 
@@ -128,8 +137,8 @@ void ServerApplication::startGame() {
                 {InputAction::RIGHT, [this](int player) { _cameraObject[player]->translateLocal(Vector3::xAxis(.5f)); }},
                 {InputAction::UP, [this](int player) { _cameraObject[player]->translateLocal(Vector3::yAxis(.5f)); }},
                 {InputAction::DOWN, [this](int player) { _cameraObject[player]->translateLocal(Vector3::yAxis(-.5f)); }},
-                {InputAction::ROTATE_UP, [this](int player) { _cameraObject[player]->rotateX(-5.0_degf); }},
-                {InputAction::ROTATE_DOWN, [this](int player) { _cameraObject[player]->rotateX(5.0_degf); }},
+                {InputAction::ROTATE_UP, [this](int player) { _cameraObject[player]->rotateXLocal(-5.0_degf); }},
+                {InputAction::ROTATE_DOWN, [this](int player) { _cameraObject[player]->rotateXLocal(5.0_degf); }},
                 {InputAction::ROTATE_LEFT, [this](int player) { _cameraObject[player]->rotateY(-5.0_degf); }},
                 {InputAction::ROTATE_RIGHT, [this](int player) { _cameraObject[player]->rotateY(5.0_degf); }},
                    {InputAction::B, [this](int player) { /*printPlaces(places);*/ printRegistery(_registry); }},
@@ -144,7 +153,7 @@ void ServerApplication::updateRegistry() {
         auto& transform = physicsView.get<TransformComponent>(entity);
         auto* body = physicsView.get<PhysicsLinkComponent>(entity).body;
 
-        const auto& matrix = body->absoluteTransformationMatrix();
+        const auto& matrix = body->transformationMatrix();
         transform.position = matrix.translation();
         transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
     }
@@ -155,7 +164,7 @@ void ServerApplication::updateRegistry() {
         auto& transform = cameraView.get<TransformComponent>(entity);
         auto* cameraObject = cameraView.get<CameraLinkComponent>(entity).cameraObject;
 
-        const auto& matrix = cameraObject->absoluteTransformationMatrix();
+        const auto& matrix = cameraObject->transformation();
         transform.position = matrix.translation();
         transform.rotation = Magnum::Quaternion::fromMatrix(matrix.rotation());
     }
@@ -223,7 +232,7 @@ void ServerApplication::PlayInputs() {
 
             auto* sphere = createAndAddEntity(_physicSystem.getScene(),ShapeComponent::ShapeType::Sphere, Vector3{1.0f}, 5.0f, 0x220000_rgbf);
 
-            sphere->setTransformation(Matrix4::translation(_cameraObject[player]->absoluteTransformation().translation()));
+            sphere->translate(_cameraObject[player]->absoluteTransformation().translation());
             sphere->syncPose();
             sphere->rigidBody().setLinearVelocity(btVector3{direction * 25.f});
         }
