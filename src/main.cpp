@@ -89,7 +89,8 @@ class ImGuiExample: public Platform::Application {
     }
 // Method to fetch player statistics
     void loadPlayerStats() {
-        if (isStatsLoaded) return;
+        Corrade::Utility::Debug{} << "Loadplayerstats" ;
+        //if (isStatsLoaded) return;
 
         httplib::Client client("http://localhost:5160");
         httplib::Headers headers = {{"Authorization", "Bearer " + authToken}};
@@ -97,13 +98,16 @@ class ImGuiExample: public Platform::Application {
 
         if (response) {
             if (response->status == 200) {
+                Corrade::Utility::Debug{} << response->status;
                 try {
                     playerStats = nlohmann::json::parse(response->body);
+                    Corrade::Utility::Debug{} << playerStats.dump(4).c_str();
                     isStatsLoaded = true;
                 } catch (const nlohmann::json::parse_error& e) {
                     statsErrorMessage = "Failed to parse statistics data: " + std::string(e.what());
                 }
             } else {
+                Corrade::Utility::Debug{} << response->status;
                 statsErrorMessage = "Failed to load statistics. HTTP Status: " + std::to_string(response->status) +
                                     ". Response body: " + response->body;
             }
@@ -113,7 +117,8 @@ class ImGuiExample: public Platform::Application {
     }
 
     void loadPlayerAchievements() {
-        if (isAchievementsLoaded) return;
+        Corrade::Utility::Debug{} << "Loadplayerachievement" ;
+        //if (isAchievementsLoaded) return;
 
         httplib::Client client("http://localhost:5160");
         httplib::Headers headers = {{"Authorization", "Bearer " + authToken}};
@@ -140,27 +145,38 @@ class ImGuiExample: public Platform::Application {
     void renderStatsTab() {
         if (!isStatsLoaded) loadPlayerStats();
 
+
         if (!statsErrorMessage.empty()) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", statsErrorMessage.c_str());
         } else {
             // Safely access JSON fields with default values
-            int gamesWon = playerStats.contains("GamesWon") && !playerStats["GamesWon"].is_null()
-                           ? playerStats["GamesWon"].get<int>()
+            int gamesWon = playerStats.contains("gamesWon") && !playerStats["gamesWon"].is_null()
+                           ? playerStats["gamesWon"].get<int>()
                            : 0;
-            int cubesCleared = playerStats.contains("CubesCleared") && !playerStats["CubesCleared"].is_null()
-                               ? playerStats["CubesCleared"].get<int>()
+            int cubesCleared = playerStats.contains("cubesCleared") && !playerStats["cubesCleared"].is_null()
+                               ? playerStats["cubesCleared"].get<int>()
                                : 0;
-            int coins = playerStats.contains("Coins") && !playerStats["Coins"].is_null()
-                        ? playerStats["Coins"].get<int>()
+            int coins = playerStats.contains("coins") && !playerStats["coins"].is_null()
+                        ? playerStats["coins"].get<int>()
                         : 0;
-            int cosmetics = playerStats.contains("Cosmetics") && !playerStats["Cosmetics"].is_null()
-                            ? playerStats["Cosmetics"].get<int>()
-                            : 0;
+            /*int cosmetics = playerStats.contains("cosmetics") && !playerStats["cosmetics"].is_null()
+                            ? playerStats["cosmetics"].get<int>()
+                            : 0;*/
 
             ImGui::Text("Games Won: %d", gamesWon);
             ImGui::Text("Cubes Cleared: %d", cubesCleared);
             ImGui::Text("Coins: %d", coins);
-            ImGui::Text("Cosmetics: %d", cosmetics);
+            //ImGui::Text("Cosmetics: %d", cosmetics);
+            if (playerStats.contains("cosmetics") && playerStats["cosmetics"].is_array()) {
+                ImGui::Text("Cosmetics:");
+                for (const auto& cosmetic : playerStats["cosmetics"]) {
+                    if (cosmetic.is_string()) {
+                        ImGui::BulletText("%s", cosmetic.get<std::string>().c_str());
+                    }
+                }
+            } else {
+                ImGui::Text("Cosmetics: None");
+            }
         }
     }
 // Render the "Achievement" tab
@@ -170,17 +186,28 @@ class ImGuiExample: public Platform::Application {
         if (!achievementsErrorMessage.empty()) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", achievementsErrorMessage.c_str());
         } else {
+            ImGui::Columns(2, "AchievementsColumns", false); // Create two columns
+            ImGui::Text("Achievement"); // Header for the first column
+            ImGui::NextColumn();
+            ImGui::Text("Status"); // Header for the second column
+            ImGui::Separator(); // Add a separator between the headers and the content
+            ImGui::NextColumn();
             for (const auto& achievement : playerAchievements) {
                 // Safely access JSON fields with default values
-                std::string name = achievement.contains("Name") && !achievement["Name"].is_null()
-                                   ? achievement["Name"].get<std::string>()
+                std::string name = achievement.contains("name") && !achievement["name"].is_null()
+                                   ? achievement["name"].get<std::string>()
                                    : "Unknown";
-                bool unlocked = achievement.contains("Unlocked") && !achievement["Unlocked"].is_null()
-                                ? achievement["Unlocked"].get<bool>()
+                bool unlocked = achievement.contains("unlocked") && !achievement["unlocked"].is_null()
+                                ? achievement["unlocked"].get<bool>()
                                 : false;
+                ImGui::Text("%s", name.c_str()); // Add the name to the first column
+                ImGui::NextColumn();
+                ImGui::Text("%s", unlocked ? "Unlocked" : "Locked"); // Add the status to the second column
+                ImGui::NextColumn();
 
-                ImGui::Text("%s: %s", name.c_str(), unlocked ? "Unlocked" : "Locked");
             }
+
+            ImGui::Columns(1); // Reset to a single column layout
         }
     }
 
@@ -204,27 +231,27 @@ class ImGuiExample: public Platform::Application {
     }
 };
 
-ImGuiExample::ImGuiExample(const Arguments& arguments): Platform::Application{arguments,
-    Configuration{}.setTitle("Magnum ImGui Example")
-                   .setWindowFlags(Configuration::WindowFlag::Resizable)}
-{
-    _imgui = ImGuiIntegration::Context(Vector2{windowSize()}/dpiScaling(),
-        windowSize(), framebufferSize());
+    ImGuiExample::ImGuiExample(const Arguments& arguments) : Platform::Application{arguments,
+        Configuration{}.setTitle("Magnum ImGui Example")
+                       .setWindowFlags(Configuration::WindowFlag::Resizable)} {
+        // Enable text input
+        startTextInput();
 
-    loadCosmetics();
-    /* Set up proper blending to be used by ImGui. There's a great chance
-       you'll need this exact behavior for the rest of your scene. If not, set
-       this only for the drawFrame() call. */
-    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
-        GL::Renderer::BlendEquation::Add);
-    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
-        GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+        _imgui = ImGuiIntegration::Context(Vector2{windowSize()}/dpiScaling(),
+            windowSize(), framebufferSize());
 
-    #if !defined(MAGNUM_TARGET_WEBGL) && !defined(CORRADE_TARGET_ANDROID)
-    /* Have some sane speed, please */
-    setMinimalLoopPeriod(16.0_msec);
-    #endif
-}
+        loadCosmetics();
+
+
+        GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
+            GL::Renderer::BlendEquation::Add);
+        GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+            GL::Renderer::BlendFunction::OneMinusSourceAlpha);
+
+#if !defined(MAGNUM_TARGET_WEBGL) && !defined(CORRADE_TARGET_ANDROID)
+        setMinimalLoopPeriod(16.0_msec);
+#endif
+    }
 
  enum class AppState {
     Login,
@@ -240,8 +267,8 @@ void ImGuiExample::drawEvent() {
 
     if (currentState == AppState::Login) {
         // Full-page login interface
-        static std::string pseudo = "player1";
-        static std::string password = "password111";
+        static std::string pseudo = "";
+        static std::string password = "";
         static std::string errorMessage;
 
         char pseudo_char[128];
@@ -271,6 +298,7 @@ void ImGuiExample::drawEvent() {
             pseudo = std::string(pseudo_char);
         }
 
+
         ImGui::Text("Password:");
         ImGui::SameLine(100);
         if (ImGui::InputText("##Password", password_char, sizeof(password_char), ImGuiInputTextFlags_Password)) {
@@ -291,6 +319,8 @@ void ImGuiExample::drawEvent() {
                     std::string token = jsonResponse["token"];
                     Corrade::Utility::Debug{} << "Login successful! Token:" << token.c_str();
                     login(pseudo, password); // Call the login function to set the authToken
+                    loadPlayerStats();
+                    loadPlayerAchievements();
                     currentState = AppState::Main; // Switch to the main window
                 } catch (const nlohmann::json::parse_error& e) {
                     Corrade::Utility::Debug{} << "JSON parse error:" << e.what();
@@ -340,13 +370,18 @@ void ImGuiExample::drawEvent() {
 
                             if (ImGui::Button(("Buy " + cosmetic["name"].get<std::string>()).c_str())) {
                                 httplib::Client client("http://localhost:5160");
-                                httplib::Headers headers = {{"Content-Type", "application/json"}};
+                                httplib::Headers headers = {
+                                    {"Content-Type", "application/json"},
+                                    {"Authorization", "Bearer " + authToken} // Add the token here
+                                };
                                 nlohmann::json body = {{"CosmeticId", cosmetic["id"].get<int>()}};
 
                                 auto response = client.Post("/api/Store/buy", headers, body.dump(), "application/json");
 
                                 if (response && response->status == 200) {
                                     Corrade::Utility::Debug{} << "Purchase successful: " << response->body.c_str();
+                                    loadPlayerStats();
+                                    loadPlayerAchievements();
                                 } else {
                                     Corrade::Utility::Debug{} << "Purchase failed.";
                                 }
@@ -434,11 +469,17 @@ void ImGuiExample::viewportEvent(ViewportEvent& event) {
 }
 
 void ImGuiExample::keyPressEvent(KeyEvent& event) {
-    if(_imgui.handleKeyPressEvent(event)) return;
+    if (_imgui.handleKeyPressEvent(event)) {
+        event.setAccepted();
+        return;
+    }
 }
 
 void ImGuiExample::keyReleaseEvent(KeyEvent& event) {
-    if(_imgui.handleKeyReleaseEvent(event)) return;
+    if (_imgui.handleKeyReleaseEvent(event)) {
+        event.setAccepted(); // Marque l'événement comme traité
+        return;
+    }
 }
 
 void ImGuiExample::pointerPressEvent(PointerEvent& event) {
@@ -461,11 +502,18 @@ void ImGuiExample::scrollEvent(ScrollEvent& event) {
     }
 }
 
-void ImGuiExample::textInputEvent(TextInputEvent& event) {
-    if(_imgui.handleTextInputEvent(event)) return;
+    void ImGuiExample::textInputEvent(TextInputEvent& event) {
+
+    // Transmit the event to ImGui
+    if (_imgui.handleTextInputEvent(event)) {
+        event.setAccepted(); // Mark the event as handled
+        return;
+    }
+
+}
 }
 
-}}
+}
 
 
 
