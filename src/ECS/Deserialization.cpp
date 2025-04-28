@@ -33,50 +33,57 @@ Quaternion readCompressedQuaternion(const uint8_t*& data) {
     float d = std::sqrt(1.0f - (aFloat * aFloat + bFloat * bFloat + cFloat * cFloat));
 
     if (maxIndex == 0)
-        return Quaternion{{d, aFloat, bFloat}, cFloat};
+        return Quaternion{{aFloat, bFloat, cFloat}, d};
     else if (maxIndex == 1)
-        return Quaternion{{aFloat, d, bFloat}, cFloat};
+        return Quaternion{{d, bFloat, cFloat}, aFloat};
     else if (maxIndex == 2)
-        return Quaternion{{aFloat, bFloat, d}, cFloat};
+        return Quaternion{{bFloat, d, cFloat}, aFloat};
 
-    return Quaternion{{aFloat, bFloat, cFloat}, d};
+    return Quaternion{{bFloat, cFloat, d}, aFloat};
 }
 void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
     uint32_t compressedPos;
     uint32_t compressedRot;
 
     // Extraire les données compressées
+    uint8_t sign = *data++;
     std::memcpy(&compressedPos, data, sizeof(compressedPos));
     data += sizeof(compressedPos);
+
+    // std::memcpy(&transform.position, data, sizeof(transform.position));
+    // data += sizeof(transform.position);
     // std::memcpy(&compressedRot, data + sizeof(compressedPos), sizeof(compressedRot));
     // data += sizeof(compressedRot);
 
     // Décompresser la position
-    uint16_t x = (compressedPos >> 22) & 0x3FF;
-    uint16_t y = (compressedPos >> 12) & 0x3FF;
-    uint16_t z = compressedPos & 0x3FF;
+    uint16_t x = (compressedPos >> 21) & 0x7FF;
+    uint16_t y = (compressedPos >> 11) & 0x3FF;
+    uint16_t z = compressedPos & 0x7FF;
 
     // Convertir les valeurs décompressées en float
-    float posX = static_cast<float>(x) / 100.0f;
-    float posY = static_cast<float>(y) / 100.0f;
-    float posZ = static_cast<float>(z) / 100.0f;
+    float posX = (sign & 0x1 ? -1.0f : 1.0f) * static_cast<float>(x) / 10.0f;
+    float posY = (sign & 0x2 ? -1.0f : 1.0f) *static_cast<float>(y) / 10.0f;
+    float posZ = (sign & 0x4 ? -1.0f : 1.0f) *static_cast<float>(z) / 10.0f;
 
-    // Décompresser la rotation
-    float rotX, rotY, rotZ, rotW;
+    // // Décompresser la rotation
+    // float rotX, rotY, rotZ, rotW;
     Quaternion quaternion = readCompressedQuaternion(data);
-
-    // Reconstituer la TransformComponent
+    //
+    // // Reconstituer la TransformComponent
     transform.position = {posX, posY, posZ};
-    fprintf(stderr, "pos: %f %f %f\n", posX, posY, posZ);
+    // fprintf(stdout, "pos : %f %f %f\n", posX, posY, posZ);
+    // fprintf(stdout, "compressedPos : %u\n", compressedPos);
     transform.rotation = quaternion;
+    // std::memcpy(&transform.rotation, data, sizeof(transform.rotation));
+    // data += sizeof(transform.rotation);
 }
 
-// void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
-//     std::memcpy(&transform.position, data, sizeof(transform.position));
-//     data += sizeof(transform.position);
-//     std::memcpy(&transform.rotation, data, sizeof(transform.rotation));
-//     data += sizeof(transform.rotation);
-// }
+/*void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
+    std::memcpy(&transform.position, data, sizeof(transform.position));
+    data += sizeof(transform.position);
+    std::memcpy(&transform.rotation, data, sizeof(transform.rotation));
+    data += sizeof(transform.rotation);
+}*/
 
 void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
     // uint8_t type;

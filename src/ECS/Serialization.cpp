@@ -52,22 +52,28 @@ void writeCompressedQuaternion(std::vector<uint8_t>& out, const Quaternion& quat
 
 void serializeTransform(std::vector<uint8_t>& out, const TransformComponent& transform) {
     auto pos = transform.position;
-    uint16_t x = static_cast<int>(pos.x()*100) & 0x3FF;
-    uint16_t y = static_cast<int>(pos.y()*100) & 0x3FF;
-    uint16_t z = static_cast<int>(pos.z()*100) & 0x3FF;
-    uint32_t compressedPos = (x << 22) | (y << 12) | z;
-    fprintf( stderr, "pos: %f %f %f\n", pos.x(), pos.y(), pos.z());
+    uint8_t sign = 0;
+    sign |= (pos.x() < 0) ? 0x1 : 0;
+    sign |= (pos.y() < 0) ? 0x2 : 0;
+    sign |= (pos.z() < 0) ? 0x4 : 0;
+    uint16_t x = static_cast<int>(abs(pos.x())*10) & 0x7FF;
+    uint16_t y = static_cast<int>(abs(pos.y())*10) & 0x3FF;
+    uint16_t z = static_cast<int>(abs(pos.z())*10) & 0x7FF;
+    uint32_t compressedPos = (x << 21) | (y << 11) | z;
+
+
     auto rot = transform.rotation;
-    // out.push_back(compressedPos);
-    // out.push_back(compressedRot);
+    out.push_back(sign);
+    out.insert(out.end(), reinterpret_cast<const uint8_t*>(&compressedPos), reinterpret_cast<const uint8_t*>(&compressedPos) + sizeof(compressedPos));
+    //out.push_back(compressedRot);
 
-    out.insert(out.end(), reinterpret_cast<uint8_t*>(&compressedPos), reinterpret_cast<uint8_t*>(&compressedPos) + sizeof(compressedPos));
+    // out.insert(out.end(), reinterpret_cast<uint8_t*>(&compressedPos), reinterpret_cast<uint8_t*>(&compressedPos) + sizeof(compressedPos));
 
-    writeCompressedQuaternion(out, rot);
     //out.insert(out.end(), reinterpret_cast<uint8_t*>(&compressedRot), reinterpret_cast<uint8_t*>(&compressedRot) + sizeof(compressedRot));
 
-    // out.insert(out.end(), reinterpret_cast<uint8_t*>(&pos), reinterpret_cast<uint8_t*>(&pos) + sizeof(pos));
-    // out.insert(out.end(), reinterpret_cast<uint8_t*>(&rot), reinterpret_cast<uint8_t*>(&rot) + sizeof(rot));
+    //out.insert(out.end(), reinterpret_cast<uint8_t*>(&pos), reinterpret_cast<uint8_t*>(&pos) + sizeof(pos));
+    //out.insert(out.end(), reinterpret_cast<uint8_t*>(&rot), reinterpret_cast<uint8_t*>(&rot) + sizeof(rot));
+    writeCompressedQuaternion(out, rot);
 }
 
 void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
