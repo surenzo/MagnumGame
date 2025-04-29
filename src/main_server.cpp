@@ -1,74 +1,7 @@
-#include <iostream>
+#include "main_server.h"
 
-#include "Magnum/Timeline.h"
-#include "Network/Server.hpp"
-#include "Network/Shared_Input.h"
-#include "Network/Shared_Objects.h"
-#include "physics/PhysicsSystem.hpp"
-#include "ECS/Serialization.cpp"
-#include "Magnum/GL/DefaultFramebuffer.h"
 
-typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
-using namespace Math::Literals;
-class ServerApplication {
-public:
-    ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates);
-    void updateRegistry();
-    std::tuple<int, std::vector<int>> loop();
-    void tick();
-    void reset();
-private:
-    RigidBody* createAndAddEntity(int player, Object3D* parent, ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
-    void startGame();
-    void PlayInputs();
-    void decrement_cubes(entt::registry& registry, entt::entity entity);
 
-    Timeline _timeline;
-    entt::registry _registry;
-
-    PhysicsSystem _physicSystem;
-    std::vector<Object3D*> _cameraRig, _cameraObject;
-
-    std::unordered_map<InputAction, std::function<void(int)>> actionHandlers;
-
-    float entityID = 0;
-    std::shared_ptr<Shared_Input> inputState = std::make_shared<Shared_Input>();
-    std::shared_ptr<Shared_Objects> objectState = std::make_shared<Shared_Objects>();
-    std::vector<int> nbOfCubes;
-};
-
-// void printRegistery(const entt::registry& _registry){
-//     //clear std::cout
-//     //TODO : fonctionne que sur windows
-//     system("cls");
-//     auto view = _registry.view<TransformComponent, ShapeComponent, RenderComponent>();
-//     for (auto entity : view) {
-//         const auto& transform = view.get<TransformComponent>(entity);
-//         const auto& shape = view.get<ShapeComponent>(entity);
-//         const auto& render = view.get<RenderComponent>(entity);
-//
-//         std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
-//         std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
-//         std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
-//         std::cout << "  Shape: " << (shape.type == ShapeComponent::ShapeType::Sphere ? "Sphere" : "Box") << "\n";
-//     }
-// }
-
-void printRegistery(const entt::registry& _registry){
-    //clear std::cout
-    //TODO : fonctionne que sur windows
-    system("cls");
-    auto view = _registry.view<TransformComponent, CameraComponent>();
-    for (auto entity : view) {
-        const auto& transform = view.get<TransformComponent>(entity);
-        const auto& camera = view.get<CameraComponent>(entity);
-
-        std::cout << "Entity: " << static_cast<unsigned int>(entity) << "\n";
-        std::cout << "  Transform: " << transform.position.x() << ", " << transform.position.y() << ", " << transform.position.z() << "\n";
-        std::cout << "  Rotation: " << transform.rotation.xyzw().x() << ", " << transform.rotation.xyzw().y() << ", " << transform.rotation.xyzw().z() << ", " << transform.rotation.xyzw().w() << "\n";
-        std::cout << "  Camera ID: " << camera.id << "\n";
-    }
-}
 ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates){
     _registry = entt::registry();
     inputState = inputStates;
@@ -156,7 +89,7 @@ void ServerApplication::startGame() {
                 {InputAction::ROTATE_DOWN, [this](int player) { _cameraObject[player]->rotateXLocal(5.0_degf); }},
                 {InputAction::ROTATE_LEFT, [this](int player) { _cameraObject[player]->rotateY(-5.0_degf); }},
                 {InputAction::ROTATE_RIGHT, [this](int player) { _cameraObject[player]->rotateY(5.0_degf); }},
-                   {InputAction::B, [this](int player) { /*printPlaces(places);*/ printRegistery(_registry); }},
+
             };
     _timeline.start();
 }
@@ -339,6 +272,7 @@ int main(int argc, char** argv) {
     //parse the addresse and port
     std::string address = argv[0];
     std::string port = argv[1];
+    std::string serverIp = address + ":" + port;
     std::shared_ptr<Shared_Input> inputStates = std::make_shared<Shared_Input>();
     std::shared_ptr<Shared_Objects> objectStates = std::make_shared<Shared_Objects>();
     Server server;
@@ -351,6 +285,11 @@ int main(int argc, char** argv) {
         //send the fact that the server is up to go
         // requete post pour l'addresse sur l'api
         server.run(inputStates, objectStates);
+        httplib::Client client("http://192.168.87.47:5160");
+        nlohmann::json body = {{"ServerIp", serverIp}};
+        std::cerr << "Nouveau serveur: " << serverIp << " <address:port>" << std::endl;
+
+        auto response = client.Post("/api/Matchmaking/register", body.dump(), "application/json");
         while (!server.canStartGame()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
