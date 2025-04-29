@@ -68,7 +68,7 @@ void ServerApplication::startGame() {
                         ShapeComponent::ShapeType::Box,
                         Vector3{1.0f},
                         1.0f,
-                        Color3::fromHsv({hue , 0.75f, 0.9f}));
+                        Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
                     box->translate({i - 2.0f, j + 3.0f, k - 2.0f});
                     box->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
 
