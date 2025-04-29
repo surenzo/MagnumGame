@@ -60,7 +60,7 @@ class ImGuiExample: public Platform::Application {
     bool isAchievementsLoaded = false;
 
     void login(const std::string& username, const std::string& password) {
-        httplib::Client client("http://localhost:5160");
+        httplib::Client client("http://192.168.87.47:5160");
         httplib::Headers headers = {{"Content-Type", "application/json"}};
         std::string body = "{\"username\":\"" + username + "\",\"password\":\"" + password + "\"}";
 
@@ -89,7 +89,7 @@ class ImGuiExample: public Platform::Application {
         Corrade::Utility::Debug{} << "Loadplayerstats" ;
         //if (isStatsLoaded) return;
 
-        httplib::Client client("http://localhost:5160");
+        httplib::Client client("http://192.168.87.47:5160");
         httplib::Headers headers = {{"Authorization", "Bearer " + authToken}};
         auto response = client.Get("/api/Statistics/statistics", headers);
 
@@ -117,7 +117,7 @@ class ImGuiExample: public Platform::Application {
         Corrade::Utility::Debug{} << "Loadplayerachievement" ;
         //if (isAchievementsLoaded) return;
 
-        httplib::Client client("http://localhost:5160");
+        httplib::Client client("http://192.168.87.47:5160");
         httplib::Headers headers = {{"Authorization", "Bearer " + authToken}};
         auto response = client.Get("/api/Statistics/achievements", headers);
 
@@ -212,7 +212,7 @@ class ImGuiExample: public Platform::Application {
     void loadCosmetics() {
         if (isCosmeticsLoaded) return; // Ne charge les cosmétiques qu'une seule fois
 
-        httplib::Client client("http://localhost:5160");
+        httplib::Client client("http://192.168.87.47:5160");
         auto response = client.Get("/api/Store/cosmetics");
 
         if (response && response->status == 200) {
