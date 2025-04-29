@@ -37,6 +37,7 @@ class ImGuiExample: public Platform::Application {
         void pointerMoveEvent(PointerMoveEvent& event) override;
         void scrollEvent(ScrollEvent& event) override;
         void textInputEvent(TextInputEvent& event) override;
+
         std::string getPlayerToken() const { return authToken; }
         std::string getServerAddress() const { return _serverAddress; }
 
