@@ -298,7 +298,31 @@ int main(int argc, char** argv) {
         auto [winner,cubes] = app.loop();
         server.sendWinner(winner);
         auto tokens = server.getTokens();
-        //send the token / winner to the server API
+
+        for (size_t i = 0; i < cubes.size(); ++i) {
+            const auto& token = tokens[i];
+            int cubesCleared = 100 - cubes[i];
+
+            httplib::Headers headers = {
+                {"Authorization", "Bearer " + token},
+                {"Content-Type", "application/json"}
+            };
+
+            nlohmann::json body = {
+                {"CubesCleared", cubesCleared},
+                {"GamesWon", (winner == i) ? 1 : 0},
+                {"Coins", (winner == i) ? 50 : 10}
+            };
+
+            auto response = client.Put("/api/Statistics/statistics/update", headers, body.dump(), "application/json");
+
+            if (response && response->status == 200) {
+                std::cout << "Statistics updated successfully for token: " << token << std::endl;
+            } else {
+                std::cerr << "Failed to update statistics for token: " << token
+                          << ". HTTP Status: " << (response ? std::to_string(response->status) : "No response") << std::endl;
+            }
+        }
 
         server.reset();
     }

@@ -154,6 +154,9 @@ class ImGuiExample: public Platform::Application {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", statsErrorMessage.c_str());
         } else {
             // Safely access JSON fields with default values
+            int gamesPlayed = playerStats.contains("gamesPlayed") && !playerStats["gamesPlayed"].is_null()
+                           ? playerStats["gamesPlayed"].get<int>()
+                           : 0;
             int gamesWon = playerStats.contains("gamesWon") && !playerStats["gamesWon"].is_null()
                            ? playerStats["gamesWon"].get<int>()
                            : 0;
@@ -166,7 +169,7 @@ class ImGuiExample: public Platform::Application {
             /*int cosmetics = playerStats.contains("cosmetics") && !playerStats["cosmetics"].is_null()
                             ? playerStats["cosmetics"].get<int>()
                             : 0;*/
-
+            ImGui::Text("Games Played: %d", gamesPlayed);
             ImGui::Text("Games Won: %d", gamesWon);
             ImGui::Text("Cubes Cleared: %d", cubesCleared);
             ImGui::Text("Coins: %d", coins);
@@ -190,8 +193,10 @@ class ImGuiExample: public Platform::Application {
         if (!achievementsErrorMessage.empty()) {
             ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", achievementsErrorMessage.c_str());
         } else {
-            ImGui::Columns(2, "AchievementsColumns", false); // Create two columns
+            ImGui::Columns(3, "AchievementsColumns", false); // Create two columns
             ImGui::Text("Achievement"); // Header for the first column
+            ImGui::NextColumn();
+            ImGui::Text("Description"); // Header for the first column
             ImGui::NextColumn();
             ImGui::Text("Status"); // Header for the second column
             ImGui::Separator(); // Add a separator between the headers and the content
@@ -201,10 +206,15 @@ class ImGuiExample: public Platform::Application {
                 std::string name = achievement.contains("name") && !achievement["name"].is_null()
                                    ? achievement["name"].get<std::string>()
                                    : "Unknown";
+                std::string description = achievement.contains("description") && !achievement["description"].is_null()
+                                   ? achievement["description"].get<std::string>()
+                                   : "Unknown";
                 bool unlocked = achievement.contains("unlocked") && !achievement["unlocked"].is_null()
                                 ? achievement["unlocked"].get<bool>()
                                 : false;
                 ImGui::Text("%s", name.c_str()); // Add the name to the first column
+                ImGui::NextColumn();
+                ImGui::Text("%s", description.c_str());
                 ImGui::NextColumn();
                 ImGui::Text("%s", unlocked ? "Unlocked" : "Locked"); // Add the status to the second column
                 ImGui::NextColumn();
