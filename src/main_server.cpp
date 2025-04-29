@@ -1,5 +1,5 @@
 #include "main_server.h"
-
+#include "globals.h"
 
 
 ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates){
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
         //send the fact that the server is up to go
         // requete post pour l'addresse sur l'api
         server.run(inputStates, objectStates);
-        httplib::Client client("http://192.168.87.47:5160");
+        httplib::Client client(SERVER_ADDRESS);
         nlohmann::json body = {{"ServerIp", serverIp}};
         std::cerr << "Nouveau serveur: " << serverIp << " <address:port>" << std::endl;
 

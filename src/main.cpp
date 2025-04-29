@@ -1,4 +1,7 @@
 #include "main.h"
+#include "globals.h"
+
+
 
 namespace Magnum { namespace Examples {
     using namespace Math::Literals;
@@ -81,7 +84,7 @@ namespace Magnum { namespace Examples {
 
             ImGui::SetCursorPosX((blockSize.x - 80) * 0.5f);
             if (ImGui::Button("Play", ImVec2(80, 30))) {
-                httplib::Client client("http://192.168.87.47:5160");
+                httplib::Client client(SERVER_ADDRESS);
                 httplib::Headers headers = {{"Content-Type", "application/json"}};
                 std::string body = "{\"username\":\"" + pseudo + "\",\"password\":\"" + password + "\"}";
 
@@ -144,7 +147,7 @@ namespace Magnum { namespace Examples {
                                 ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
 
                                 if (ImGui::Button(("Buy " + cosmetic["name"].get<std::string>()).c_str())) {
-                                    httplib::Client client("http://192.168.87.47:5160");
+                                    httplib::Client client(SERVER_ADDRESS);
                                     httplib::Headers headers = {
                                         {"Content-Type", "application/json"},
                                         {"Authorization", "Bearer " + authToken} // Add the token here
@@ -206,12 +209,11 @@ namespace Magnum { namespace Examples {
 
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10); // Ajout d'un espace vertical
                     if (ImGui::Button("Play", ImVec2(100, 30))) {
-                        // Action à effectuer lorsque le bouton est cliqué
                         Corrade::Utility::Debug{} << "Matchmaking Play button clicked!";
 
-                        // Fetch the server address from the API
-                        httplib::Client client("http://192.168.87.47:5160"); // Replace with your API base URL
-                        httplib::Headers headers = {{"Authorization", "Bearer " + authToken}}; // Add the auth token
+
+                        httplib::Client client(SERVER_ADDRESS);
+                        httplib::Headers headers = {{"Authorization", "Bearer " + authToken}};
                         auto response = client.Post("/api/Matchmaking/join", headers);
 
                         if (response && response->status == 200) {
