@@ -51,6 +51,11 @@ void MagnumBootstrap::drawEvent() {
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     auto packet = objectState->getWorld();
+    auto winner = objectState->getWinner();
+    if (winner!=-1) {
+        std::cout << "Player " << objectState->getWinner() << " wins!" << std::endl;
+        exit(0);
+    }
 
     entt::registry _newRegistry;
     deserializeRegistry(_newRegistry, packet);

@@ -22,6 +22,21 @@ public:
         return tokens[player];
     }
 
+    void sendWinner(int player) {
+
+        //check for sending objects
+        std::vector<uint8_t> buffer;
+        uint8_t type =6;
+        buffer.push_back(type);
+        buffer.push_back(static_cast<uint8_t>(player));
+        // Create an ENet packet
+        ENetPacket* packet = enet_packet_create(buffer.data(), buffer.size(), ENET_PACKET_FLAG_RELIABLE);
+        // Send the packet to all clients
+        for (auto& client : connectedClients) {
+            enet_peer_send(client, 0, packet);
+        }
+    }
+
 private:
     ENetHost* server = nullptr;
     std::vector<ENetPeer*> connectedClients;

@@ -26,6 +26,12 @@ class ImGuiExample: public Platform::Application {
         void keyPressEvent(KeyEvent& event) override;
         void keyReleaseEvent(KeyEvent& event) override;
 
+        void logFromToken(std::string newToken) {
+            authToken = newToken;
+            loadPlayerStats();
+            loadPlayerAchievements();
+        }
+
         void pointerPressEvent(PointerEvent& event) override;
         void pointerReleaseEvent(PointerEvent& event) override;
         void pointerMoveEvent(PointerMoveEvent& event) override;

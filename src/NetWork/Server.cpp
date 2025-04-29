@@ -9,12 +9,13 @@ bool Server::start(enet_uint16 port) {
         std::cerr << "ENet initialization failed\n";
         return false;
     }
+    tokens.resize(4);
 
     ENetAddress address;
     address.host = ENET_HOST_ANY;
     address.port = port;
 
-    server = enet_host_create(&address, 4, 4, 0, 0); // max 2 clients, 2 channels
+    server = enet_host_create(&address, 4, 1, 0, 0);
     if (!server) {
         std::cerr << "Failed to create server host\n";
         return false;

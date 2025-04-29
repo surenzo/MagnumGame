@@ -120,6 +120,16 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                         playerNumber = data[1];
                         std::cout << "Welcome to the game! You are player number " << static_cast<int>(playerNumber) << "\n";
                     }
+                    if (data[0] == 6) { // winner message
+                        int winner = data[1];
+                        if (winner == playerNumber) {
+                            std::cout << "You are the winner!\n";
+                        } else {
+                            std::cout << "You loose!\n";
+                        }
+                        objectState->setWinner(winner);
+                        stop();
+                    }
                     enet_packet_destroy(event.packet);
                 break;
                 default:

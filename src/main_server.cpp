@@ -14,7 +14,7 @@ class ServerApplication {
 public:
     ServerApplication(std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates);
     void updateRegistry();
-    int loop();
+    std::tuple<int, std::vector<int>> loop();
     void tick();
     void reset();
 private:
@@ -135,7 +135,7 @@ void ServerApplication::startGame() {
                         ShapeComponent::ShapeType::Box,
                         Vector3{1.0f},
                         1.0f,
-                        Color3::fromHsv({hue += 137.5_degf, 0.75f, 0.9f}));
+                        Color3::fromHsv({hue , 0.75f, 0.9f}));
                     box->translate({i - 2.0f, j + 3.0f, k - 2.0f});
                     box->translate(Vector3(40.0f * (i % 2), 0.0f, 40.0f * (i / 2)));
 
@@ -185,7 +185,7 @@ void ServerApplication::updateRegistry() {
     }
 }
 
-int ServerApplication::loop() {
+std::tuple<int, std::vector<int>>  ServerApplication::loop() {
     bool running = true;
     int winner = -1;
     startGame();
@@ -201,7 +201,7 @@ int ServerApplication::loop() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(5)); // Sleep for 3ms to limit CPU usage
     }
-    return winner;
+    return {winner, nbOfCubes};
 }
 
 void ServerApplication::tick() {
@@ -329,6 +329,16 @@ RigidBody* ServerApplication::createAndAddEntity(
 
 
 int main(int argc, char** argv) {
+
+    //verifie que argc est bien 2
+    //et les deux premiers parametres sont l'addresse et le port
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <address:port>" << std::endl;
+        return -1;
+    }
+    //parse the addresse and port
+    std::string address = argv[0];
+    std::string port = argv[1];
     std::shared_ptr<Shared_Input> inputStates = std::make_shared<Shared_Input>();
     std::shared_ptr<Shared_Objects> objectStates = std::make_shared<Shared_Objects>();
     Server server;
@@ -339,12 +349,13 @@ int main(int argc, char** argv) {
 
     while (true) {
         //send the fact that the server is up to go
+        // requete post pour l'addresse sur l'api
         server.run(inputStates, objectStates);
         while (!server.canStartGame()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
         //send that the server is running
-        auto winner = app.loop();
+        auto [winner,cubes] = app.loop();
         auto token = server.getWinnerToken(winner);
         //send the token / winner to the server API
 

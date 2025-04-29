@@ -11,9 +11,11 @@ int main(int argc, char** argv) {
     while(true){
         {
             Examples::ImGuiExample lobby(arguments);
+            if (!token.empty())
+                lobby.logFromToken(token);
             lobby.exec();
             token = lobby.getPlayerToken();
-            address = lobby.getServerAddress();
+            address = lobby.getServerAddress();// get the address
             // parse the addresse to have addresse and port
         }
 

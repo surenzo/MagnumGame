@@ -20,10 +20,19 @@ public:
         std::lock_guard<std::mutex> lock(_mutex);
         return world;
     }
+    void setWinner(int newWinner) {
+        std::lock_guard<std::mutex> lock(_mutex);
+        winner = newWinner;
+    }
+    int getWinner() {
+        std::lock_guard<std::mutex> lock(_mutex);
+        return winner;
+    }
 private:
 
     std::mutex _mutex;
     std::vector<uint8_t> world;
+    int winner = -1;
 
 };
 
