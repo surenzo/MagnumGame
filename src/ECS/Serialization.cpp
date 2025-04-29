@@ -1,9 +1,10 @@
+#pragma once
 #include <cstdint>
 #include <vector>
 
 #include "Components.hpp"
 // Compression de quaternion
-void writeCompressedQuaternion(std::vector<uint8_t>& out, const Quaternion& quaternion) {
+inline void writeCompressedQuaternion(std::vector<uint8_t>& out, const Quaternion& quaternion) {
     uint8_t maxIndex = 0;
     float maxValue = std::numeric_limits<float>::min();
     float sign = 1.0f;
@@ -50,13 +51,12 @@ void writeCompressedQuaternion(std::vector<uint8_t>& out, const Quaternion& quat
     out.insert(out.end(), reinterpret_cast<const uint8_t*>(&c), reinterpret_cast<const uint8_t*>(&c) + sizeof(c));
 }
 
-void serializeTransform(std::vector<uint8_t>& out, const TransformComponent& transform) {
+inline void serializeTransform(std::vector<uint8_t>& out, const TransformComponent& transform) {
     auto pos = transform.position;
     uint16_t x = static_cast<int>(pos.x()*100) & 0x3FF;
     uint16_t y = static_cast<int>(pos.y()*100) & 0x3FF;
     uint16_t z = static_cast<int>(pos.z()*100) & 0x3FF;
     uint32_t compressedPos = (x << 22) | (y << 12) | z;
-    fprintf( stderr, "pos: %f %f %f\n", pos.x(), pos.y(), pos.z());
     auto rot = transform.rotation;
     // out.push_back(compressedPos);
     // out.push_back(compressedRot);
@@ -70,7 +70,7 @@ void serializeTransform(std::vector<uint8_t>& out, const TransformComponent& tra
     // out.insert(out.end(), reinterpret_cast<uint8_t*>(&rot), reinterpret_cast<uint8_t*>(&rot) + sizeof(rot));
 }
 
-void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
+inline void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
     out.push_back(static_cast<uint8_t>(shape.type));
     //
     // out.insert(out.end(), reinterpret_cast<const uint8_t*>(&shape.size), reinterpret_cast<const uint8_t*>(&shape.size) + sizeof(shape.size));
@@ -90,7 +90,7 @@ void serializeShape(std::vector<uint8_t>& out, const ShapeComponent& shape) {
     out.push_back(static_cast<uint8_t>(shape.radius));
 }
 
-void serializeColor(std::vector<uint8_t>& out, const RenderComponent& render) {
+inline void serializeColor(std::vector<uint8_t>& out, const RenderComponent& render) {
     // auto color = render.color;
     // auto entityID = render.entityID;
     // out.insert(out.end(), reinterpret_cast<const uint8_t*>(&color), reinterpret_cast<const uint8_t*>(&color) + sizeof(color));
@@ -108,13 +108,13 @@ void serializeColor(std::vector<uint8_t>& out, const RenderComponent& render) {
     uint16_t entityID = render.entityID;
     out.insert(out.end(), reinterpret_cast<const uint8_t*>(&entityID), reinterpret_cast<const uint8_t*>(&entityID) + sizeof(uint16_t));
 }
-void serializeCamera(const CameraComponent& camera, std::vector<uint8_t>& out) {
+inline void serializeCamera(const CameraComponent& camera, std::vector<uint8_t>& out) {
     out.push_back(static_cast<uint8_t>(camera.id));
 
     //out.insert(out.end(), reinterpret_cast<const uint8_t>(&id), reinterpret_cast<const uint8_t>(&id) + sizeof(uint8_t));
 }
 
-std::vector<uint8_t> serializeRegistry(const entt::registry& registry) {
+inline std::vector<uint8_t> serializeRegistry(const entt::registry& registry) {
     std::vector<uint8_t> buffer;
 
     auto view = registry.view<TransformComponent, ShapeComponent, RenderComponent>();

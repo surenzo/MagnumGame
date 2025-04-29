@@ -23,6 +23,7 @@ public:
     RigidBody* addSphere(float radius = 1.0f, float mass = 1.0f);
     RigidBody* addBox(Object3D* parent,Vector3 size = {1.0f,1.0f,1.0f}, float mass = 1.0f);
     RigidBody* addSphere(Object3D* parent, float radius = 1.0f, float mass = 1.0f);
+    void reset();
 
 private:
     btDbvtBroadphase _bBroadphase;

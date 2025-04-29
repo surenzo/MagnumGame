@@ -1,3 +1,4 @@
+#pragma once
 #include <cstdint>
 #include <vector>
 #include <cstring>
@@ -6,7 +7,7 @@
 
 #include "Components.hpp"
 // Décompression de quaternion
-Quaternion readCompressedQuaternion(const uint8_t*& data) {
+inline Quaternion readCompressedQuaternion(const uint8_t*& data) {
     uint8_t maxIndex = *data++;
 
     if (maxIndex >= 4 && maxIndex <= 7) {
@@ -41,7 +42,7 @@ Quaternion readCompressedQuaternion(const uint8_t*& data) {
 
     return Quaternion{{aFloat, bFloat, cFloat}, d};
 }
-void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
+inline void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
     uint32_t compressedPos;
     uint32_t compressedRot;
 
@@ -67,7 +68,6 @@ void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
 
     // Reconstituer la TransformComponent
     transform.position = {posX, posY, posZ};
-    fprintf(stderr, "pos: %f %f %f\n", posX, posY, posZ);
     transform.rotation = quaternion;
 }
 
@@ -78,7 +78,7 @@ void deserializeTransform(const uint8_t*& data, TransformComponent& transform) {
 //     data += sizeof(transform.rotation);
 // }
 
-void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
+inline void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
     // uint8_t type;
     // std::memcpy(&type, data, sizeof(type));
     // shape.type = static_cast<ShapeComponent::ShapeType>(type);
@@ -111,7 +111,7 @@ void deserializeShape(const uint8_t*& data, ShapeComponent& shape) {
     shape.radius = static_cast<float>(radius);
 }
 
-void deserializeColor(const uint8_t*& data, RenderComponent& render) {
+inline void deserializeColor(const uint8_t*& data, RenderComponent& render) {
     // std::memcpy(&render.color, data, sizeof(render.color));
     // data += sizeof(render.color);
     // std::memcpy(&render.entityID, data, sizeof(render.entityID));
@@ -137,7 +137,7 @@ void deserializeColor(const uint8_t*& data, RenderComponent& render) {
     data += sizeof(uint16_t);
 }
 
-void deserializeCamera(const uint8_t*& data, CameraComponent& camera) {
+inline void deserializeCamera(const uint8_t*& data, CameraComponent& camera) {
     // uint8_t id;
     // std::memcpy(&id, data, sizeof(uint8_t));
     // data += sizeof(uint8_t);
@@ -148,7 +148,7 @@ void deserializeCamera(const uint8_t*& data, CameraComponent& camera) {
     // data += sizeof(uint8_t);
 }
 
-void deserializeRegistry(entt::registry& registry, const std::vector<uint8_t>& buffer) {
+inline void deserializeRegistry(entt::registry& registry, const std::vector<uint8_t>& buffer) {
     const uint8_t* data = buffer.data();
     const uint8_t* end = data + buffer.size();
 

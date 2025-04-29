@@ -13,10 +13,19 @@ public:
     void run(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState);
     void stop();
     bool canStartGame() const { return canStart; }
+    void reset() {
+        canStart = false;
+        connectedClients.clear();
+        tokens.clear();
+    }
+    std::string getWinnerToken(int player) {
+        return tokens[player];
+    }
 
 private:
     ENetHost* server = nullptr;
     std::vector<ENetPeer*> connectedClients;
+    std::vector<std::string> tokens;
     void loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState);
     bool canStart = false;
     std::thread _thread;

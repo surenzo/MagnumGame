@@ -16,6 +16,7 @@ public:
     void updateRegistry();
     int loop();
     void tick();
+    void reset();
 private:
     RigidBody* createAndAddEntity(int player, Object3D* parent, ShapeComponent::ShapeType shapeType, const Vector3& sizeOrRadius, float mass, const Color3& color);
     void startGame();
@@ -74,8 +75,18 @@ ServerApplication::ServerApplication(std::shared_ptr<Shared_Input> inputStates, 
     objectState = objectStates;
     // add new entity to the registry
 
-    startGame();
 }
+void ServerApplication::reset() {
+    _registry.clear();
+    _physicSystem.reset();
+    _cameraRig.clear();
+    _cameraObject.clear();
+
+    entityID = 0;
+    nbOfCubes.clear();
+
+}
+
 void ServerApplication::startGame() {
     nbOfCubes.resize(4);
     // Create 4 parent objects for the 4 players (platforms)
@@ -177,6 +188,7 @@ void ServerApplication::updateRegistry() {
 int ServerApplication::loop() {
     bool running = true;
     int winner = -1;
+    startGame();
     while (running) {
         tick();
         for ( int i = 0; i < nbOfCubes.size(); ++i) {
@@ -325,12 +337,20 @@ int main(int argc, char** argv) {
     if (!server.start(20000))
         return -1;
 
-    server.run(inputStates, objectStates);
-    while (!server.canStartGame()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    app.loop();
+    while (true) {
+        //send the fact that the server is up to go
+        server.run(inputStates, objectStates);
+        while (!server.canStartGame()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        //send that the server is running
+        auto winner = app.loop();
+        auto token = server.getWinnerToken(winner);
+        //send the token / winner to the server API
 
+        server.reset();
+        app.reset();
+    }
 
     //server.stop();
     return 0;

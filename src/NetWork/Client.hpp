@@ -12,6 +12,7 @@ public:
 
     void run(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shared_Objects> objectState);
     int getPlayerNumber() const { return playerNumber; }
+    void setToken(const std::string& token);
 
     void stop();
     void disconnect();
@@ -21,6 +22,7 @@ private:
     ENetHost* client = nullptr;
     ENetPeer* peer = nullptr;
     int playerNumber = -1;
+    std::string token;
     std::thread _thread;
     std::atomic<bool> _running{false};
 };

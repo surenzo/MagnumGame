@@ -133,6 +133,26 @@ void Client::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
         }
     }
 }
+
+void Client::setToken(const std::string &token) {
+    this->token = token;
+
+    uint8_t type = 4;
+    size_t tokenSize = token.size();
+    auto buffer = new uint8_t[1 + tokenSize]; // Allocate buffer dynamically
+    buffer[0] = type;
+    memcpy(buffer + 1, token.data(), tokenSize); // Copy the string content
+
+    // Create an ENet packet
+    ENetPacket* packet = enet_packet_create(buffer, 1 + tokenSize, ENET_PACKET_FLAG_RELIABLE);
+
+    // Send the packet to the server
+    enet_peer_send(peer, 0, packet);
+
+    // Clean up
+    delete[] buffer;
+}
+
 void Client::stop() {
     _running = false;
     if (peer)

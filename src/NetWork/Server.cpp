@@ -103,6 +103,23 @@ void Server::loop(std::shared_ptr<Shared_Input> inputState, std::shared_ptr<Shar
                         std::memcpy(&position, data + 2, sizeof(Magnum::Vector2));
                         inputState->addClickAction(action, position, data[1]);
                     }
+                    if (data[0] == 4) // its a token
+                    {
+                        std::string token(reinterpret_cast<char*>(data + 1), dataSize - 1);
+                        std::cout << "Token received: " << token << "\n";
+                        //find the number of the player and add its token
+                        int playerNumber = -1;
+                        for (size_t i = 0; i < connectedClients.size(); ++i) {
+                            if (connectedClients[i] == event.peer) {
+                                playerNumber = static_cast<int>(i);
+                                break;
+                            }
+                        }
+                        if (playerNumber != -1) {
+                            tokens[playerNumber] = token;
+                            std::cout << "Token for player " << playerNumber << ": " << token << "\n";
+                        }
+                    }
                 break;
                 default:
                     std::cout << "Unhandled event type: " << event.type << "\n";

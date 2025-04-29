@@ -64,6 +64,21 @@ auto PhysicsSystem::update(float dt) -> std::vector<Object3D *> {
     return entitesToDestroy;
   }
 
+void PhysicsSystem::reset() {
+    // 1. Remove all rigid bodies from the world
+    for (int i = _bWorld.getNumCollisionObjects() - 1; i >= 0; --i) {
+        btCollisionObject* obj = _bWorld.getCollisionObjectArray()[i];
+
+        btRigidBody* body = btRigidBody::upcast(obj);
+        if (body && body->getMotionState()) {
+            delete body->getMotionState(); // Delete MotionState if it exists
+        }
+
+        _bWorld.removeCollisionObject(obj);
+        delete obj; // Delete the CollisionObject (rigid body)
+    }
+}
+
 
 
 // TODO : add all this for entt

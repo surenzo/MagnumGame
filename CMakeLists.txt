@@ -62,14 +62,22 @@ target_link_libraries(GameCore PUBLIC
         Bullet3Common
         enet
 )
+
+target_sources(GameCore PRIVATE
+        src/main.cpp
+        src/main_Client.cpp
+)
 set_property(TARGET GameCore PROPERTY CXX_STANDARD 20)
 
-# Définition de l'exécutable principal
-add_executable(MagnumBootstrap src/main.cpp)
-target_link_libraries(MagnumBootstrap PRIVATE GameCore)
+## Définition de l'exécutable principal
+#add_executable(MagnumBootstrap src/main.cpp)
+#target_link_libraries(MagnumBootstrap PRIVATE GameCore)
+
+add_executable(true_client src/trueMainClient.cpp src/main.h src/main_Client.h)
+target_link_libraries(true_client PRIVATE GameCore)
 
 add_executable(Server src/main_server.cpp)
 target_link_libraries(Server PRIVATE GameCore)
-
-add_executable(Client src/main_Client.cpp)
-target_link_libraries(Client PRIVATE GameCore)
+#
+#add_executable(Client src/main_Client.cpp)
+#target_link_libraries(Client PRIVATE GameCore)

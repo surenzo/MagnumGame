@@ -1,17 +1,4 @@
-#include <iostream>
-#include <Magnum/Platform/GlfwApplication.h>
-#include <Magnum/GL/DefaultFramebuffer.h>
-#include <Magnum/SceneGraph/Camera.h>
-#include <Magnum/ImGuiIntegration/Context.hpp>
-#include <Magnum/Math/Time.h>
-#include <imgui.h>
-
-#include "physics/PhysicsSystem.hpp"
-#include "Rendering/RenderingSystem.h"
-#include "Network/Client.hpp"
-#include "NetWork/Shared_Input.h"
-#include "NetWork/Shared_Objects.h"
-#include "ECS/Deserialization.cpp"
+#include "main_Client.h"
 
 namespace Magnum::Game {
 
@@ -20,37 +7,7 @@ using namespace Math::Literals;
 typedef SceneGraph::Object<SceneGraph::MatrixTransformation3D> Object3D;
 typedef SceneGraph::Scene<SceneGraph::MatrixTransformation3D> Scene3D;
 
-class MagnumBootstrap: public Platform::Application {
-public:
-    explicit MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates, int playerNumber);
-
-private:
-    void drawEvent() override;
-    void viewportEvent(ViewportEvent& event) override;
-    void keyPressEvent(KeyEvent& event) override;
-    void pointerPressEvent(PointerEvent& event) override;
-    void updateRegistry(const entt::registry& newRegistry);
-    Timeline _timeline;
-
-    entt::registry _registry;
-    std::unordered_map<uint32_t,entt::entity> linkingContext;
-
-
-    std::unique_ptr<RenderingSystem> _renderingSystem;
-
-    Scene3D _scene;
-    Object3D *_cameraRig, *_cameraObject;
-    SceneGraph::Camera3D* _camera;
-
-    bool _drawCubes{true}, _drawDebug{true};
-    ImGuiIntegration::Context _imgui{NoCreate};
-    std::shared_ptr<Shared_Input> inputState;
-    std::shared_ptr<Shared_Objects> objectState;
-
-    int player;
-};
-
-MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates, int playerNumber): Platform::Application(arguments, NoCreate){
+MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Shared_Input> inputStates, std::shared_ptr<Shared_Objects> objectStates): Platform::Application(arguments, NoCreate){
     //config pas toucher --
     const Vector2 dpiScaling = this->dpiScaling({});
     Configuration conf;
@@ -61,7 +18,6 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
     if(!tryCreate(conf, glConf))
         create(conf, glConf.setSampleCount(0));
     // -------
-    player = playerNumber;
     inputState = inputStates;
     objectState = objectStates;
     _renderingSystem = std::make_unique<RenderingSystem>();
@@ -91,6 +47,7 @@ void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
 }
 
 void MagnumBootstrap::drawEvent() {
+    GL::Context::makeCurrent(&GL::Context::current());
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     auto packet = objectState->getWorld();
@@ -271,23 +228,23 @@ void MagnumBootstrap::updateRegistry(const entt::registry& newRegistry) {
     }
 }
 }
-int  main(int argc, char** argv) {
-    auto inputStates = std::make_shared<Shared_Input>();
-    auto ObjectStates = std::make_shared<Shared_Objects>();
-    Client client;
-    if (!client.connectToServer("127.0.0.1", 20000))
-        return -1;
-
-    // ici tu peux boucler pour interagir ou juste tester la connexion
-    client.run(inputStates, ObjectStates);
-    int playerNumber;
-    while ((playerNumber = client.getPlayerNumber()) == -1) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    Magnum::Platform::Application::Arguments arguments(argc, argv);
-    Game::MagnumBootstrap app(arguments, inputStates, ObjectStates, playerNumber);
-    app.exec();
-    return 0;
-}
+// int  main(int argc, char** argv) {
+//     auto inputStates = std::make_shared<Shared_Input>();
+//     auto ObjectStates = std::make_shared<Shared_Objects>();
+//     Client client;
+//     if (!client.connectToServer("127.0.0.1", 20000))
+//         return -1;
+//
+//     // ici tu peux boucler pour interagir ou juste tester la connexion
+//     client.run(inputStates, ObjectStates);
+//     int playerNumber;
+//     while ((playerNumber = client.getPlayerNumber()) == -1) {
+//         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+//     }
+//     Magnum::Platform::Application::Arguments arguments(argc, argv);
+//     Game::MagnumBootstrap app(arguments, inputStates, ObjectStates, playerNumber);
+//     app.exec();
+//     return 0;
+// }
 
 
