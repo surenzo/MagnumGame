@@ -322,6 +322,15 @@ int main(int argc, char** argv) {
                 std::cerr << "Failed to update statistics for token: " << token
                           << ". HTTP Status: " << (response ? std::to_string(response->status) : "No response") << std::endl;
             }
+
+            auto leaveResponse = client.Post("/api/Matchmaking/leave", headers);
+
+            if (leaveResponse && leaveResponse->status == 200) {
+                std::cout << "Player successfully left the server for token: " << token << std::endl;
+            } else {
+                std::cerr << "Failed to make player leave the server for token: " << token
+                          << ". HTTP Status: " << (leaveResponse ? std::to_string(leaveResponse->status) : "No response") << std::endl;
+            }
         }
 
         server.reset();

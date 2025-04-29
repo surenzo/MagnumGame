@@ -202,7 +202,7 @@ namespace Magnum { namespace Examples {
                     ImGui::EndTabItem();
                 }*/
                 if (ImGui::BeginTabItem("Matchmaking")) {
-                    ImGui::Text("Vous allez jouer contre des joueurs ayant entre 5 et 15 victoires.");
+                    ImGui::Text("Find Worthy opponents.");
 
                     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 10); // Ajout d'un espace vertical
                     if (ImGui::Button("Play", ImVec2(100, 30))) {
