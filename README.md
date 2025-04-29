@@ -15,7 +15,7 @@ Have some fun with it, but don't expect too much.
 
 4. Launch the server ( this repository ),  give it in arguments it's own address and the port you want to use (ex : "server.exe localhost:8080").
 This step is important because the server run the game loop and isn't created on runtime
-5. Launch the client ( this repository ), log in using credentials from the API
+5. Launch the client ( this repository ), log in using credentials from the API (playerx, passwordxxx, x being 1-8)
 6. You can start playing the matchmaking : depending on your win, you will be matched with players of similar skill level. 
 
 Important note : The server will wait for 4 players to join before starting game so you might have to launch 4 clients. 
@@ -30,6 +30,7 @@ Important note : The server will wait for 4 players to join before starting game
 - Depending on your machine, the cubes might be shown on debug ( you see the inside of the cube )
 - In the game, because network > precision, if you step out too far from the center, the entity will freeze in place (for balls)
 
+- API-side, if a server is opened then closed, players can still access it for matchmaking, causing them to be stuck in the game (but not in the API) and they will have to restart the client to be able to play again.
 ## Minor bugs :
 - A small precision error in the position of every entity ( network was more important than precision )
 - Sync is not used so there might be some errors 
@@ -45,15 +46,18 @@ The engine (this application) is not great at all :
 - the includes are not well organized ( magnum proposed to use a specific method but I didn't use it ) and it slows the compilation too much ( can have up to 10 minutes of compilation time depending on the target )
 - the main horror (having some random main becoming later just another class with header files) on src is something 
 - I tried to use hierarchy in magnum but caused me some problem (over the network) so have fun.
+- Only 1 channel is used (in the network), I don't know the impact, but it is noticeable
 
 
 ## What's great about it :
 ### we learned a lot :
 - First Big step on the network 
 - First big step on the game engine
+- First big step on the API
 - First step on the ECS 
 - improvement on the CMake
 - improvement on the C++ and some good practices (mostly not applied here sadly)
+- Discovery of many libraries (Magnum, Bullet, ImGui, httplib, etc.)
 
 ### There are some nice features like :
 - Good Serialisation
