@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/modules/" ${CMAKE_MODULE_PATH})
 set(CMAKE_CXX_FLAGS "-fpermissive -std=c++0x")
-
+add_compile_options(-Wa,-mbig-obj)
 # Tous les fichiers de ta "core logic"
 file(GLOB_RECURSE SRC_FILES
         src/*/*.cpp

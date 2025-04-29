@@ -269,19 +269,20 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0] << " <address:port>" << std::endl;
         return -1;
     }
-    //parse the addresse and port
-    std::string address = argv[0];
-    std::string port = argv[1];
+
+    std::string fullAddress = argv[1];
+    std::string address = fullAddress.substr(0, fullAddress.find(':'));
+    std::string port = fullAddress.substr(fullAddress.find(':') + 1);
     std::string serverIp = address + ":" + port;
     std::shared_ptr<Shared_Input> inputStates = std::make_shared<Shared_Input>();
     std::shared_ptr<Shared_Objects> objectStates = std::make_shared<Shared_Objects>();
     Server server;
 
-    ServerApplication app{inputStates, objectStates};
-    if (!server.start(20000))
+    if (!server.start( std::stoi(port)))
         return -1;
 
     while (true) {
+        ServerApplication app{inputStates, objectStates};
         //send the fact that the server is up to go
         // requete post pour l'addresse sur l'api
         server.run(inputStates, objectStates);
@@ -296,11 +297,10 @@ int main(int argc, char** argv) {
         //send that the server is running
         auto [winner,cubes] = app.loop();
         server.sendWinner(winner);
-        auto token = server.getWinnerToken(winner);
+        auto tokens = server.getTokens();
         //send the token / winner to the server API
 
         server.reset();
-        app.reset();
     }
 
     //server.stop();

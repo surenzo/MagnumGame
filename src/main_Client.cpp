@@ -106,25 +106,28 @@ void MagnumBootstrap::drawEvent() {
         swapBuffers();
         redraw();
     }
-    GL::Context::makeCurrent(&GL::Context::current());
-    GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
+    else {
+        GL::Context::makeCurrent(&GL::Context::current());
+        GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
-    auto packet = objectState->getWorld();
-    auto winner = objectState->getWinner();
-    if (winner!=-1) {
-        _gameState = GAME_OVER;
+        auto packet = objectState->getWorld();
+        auto winner = objectState->getWinner();
+        if (winner!=-1) {
+            _gameState = GAME_OVER;
+        }
+
+        entt::registry _newRegistry;
+        deserializeRegistry(_newRegistry, packet);
+
+        updateRegistry(_newRegistry);
+
+        _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
+
+        swapBuffers();
+        _timeline.nextFrame();
+        redraw();
     }
 
-    entt::registry _newRegistry;
-    deserializeRegistry(_newRegistry, packet);
-
-    updateRegistry(_newRegistry);
-
-    _renderingSystem.get()->render(_camera, _drawCubes, _drawDebug);
-
-    swapBuffers();
-    _timeline.nextFrame();
-    redraw();
 }
 
 //     void printRegistery(const entt::registry& _registry) {

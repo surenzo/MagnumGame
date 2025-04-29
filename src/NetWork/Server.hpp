@@ -22,6 +22,10 @@ public:
         return tokens[player];
     }
 
+    std::vector<std::string> getTokens() {
+        return tokens;
+    }
+
     void sendWinner(int player) {
         //check for sending objects
         std::vector<uint8_t> buffer;
