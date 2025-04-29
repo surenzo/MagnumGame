@@ -28,10 +28,15 @@ namespace Magnum::Game {
         void setPlayer(int player) { this->player = player; }
 
     private:
+        void pointerMoveEvent(PointerMoveEvent &event);
+
         void drawEvent() override;
         void viewportEvent(ViewportEvent& event) override;
         void keyPressEvent(KeyEvent& event) override;
+        void keyReleaseEvent(KeyEvent &event) override;
         void pointerPressEvent(PointerEvent& event) override;
+        void pointerReleaseEvent(PointerEvent &event) override ;
+
         void updateRegistry(const entt::registry& newRegistry);
         Timeline _timeline;
 
@@ -49,6 +54,13 @@ namespace Magnum::Game {
         ImGuiIntegration::Context _imgui{NoCreate};
         std::shared_ptr<Shared_Input> inputState;
         std::shared_ptr<Shared_Objects> objectState;
+        bool _showAnotherWindow = false;
+
+        enum gameState {
+            PLAYING,
+            GAME_OVER
+        };
+        gameState _gameState = PLAYING;
 
         int player;
     };

@@ -356,6 +356,7 @@ int main(int argc, char** argv) {
         }
         //send that the server is running
         auto [winner,cubes] = app.loop();
+        server.sendWinner(winner);
         auto token = server.getWinnerToken(winner);
         //send the token / winner to the server API
 

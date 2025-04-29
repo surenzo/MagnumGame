@@ -23,7 +23,6 @@ public:
     }
 
     void sendWinner(int player) {
-
         //check for sending objects
         std::vector<uint8_t> buffer;
         uint8_t type =6;

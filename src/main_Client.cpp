@@ -21,8 +21,13 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
     inputState = inputStates;
     objectState = objectStates;
     _renderingSystem = std::make_unique<RenderingSystem>();
+    GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
+        GL::Renderer::BlendEquation::Add);
+    GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
+        GL::Renderer::BlendFunction::OneMinusSourceAlpha);
 
-
+    _imgui = ImGuiIntegration::Context(Vector2{windowSize()}/this->dpiScaling(),
+                windowSize(), framebufferSize());
 
     // probablement a changer
     (*(_cameraRig = new Object3D{&_scene}))
@@ -41,20 +46,73 @@ MagnumBootstrap::MagnumBootstrap(const Arguments& arguments, std::shared_ptr<Sha
     _timeline.start();
 }
 
-void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
+
+    void MagnumBootstrap::viewportEvent(ViewportEvent& event) {
     GL::defaultFramebuffer.setViewport({{}, event.framebufferSize()});
-    _imgui.relayout(Vector2{event.windowSize()}/event.dpiScaling(), event.windowSize(), event.framebufferSize());
+
+    _imgui.relayout(Vector2{event.windowSize()}/event.dpiScaling(),
+        event.windowSize(), event.framebufferSize());
+}
+
+
+    void MagnumBootstrap::keyReleaseEvent(KeyEvent& event) {
+    if (_imgui.handleKeyReleaseEvent(event)) {
+        event.setAccepted(); // Marque l'événement comme traité
+        return;
+    }
+}
+
+
+    void MagnumBootstrap::pointerReleaseEvent(PointerEvent& event) {
+    if(_imgui.handlePointerReleaseEvent(event)) return;
+}
+
+    void MagnumBootstrap::pointerMoveEvent(PointerMoveEvent& event) {
+    if(_imgui.handlePointerMoveEvent(event)) return;
 }
 
 void MagnumBootstrap::drawEvent() {
+    if (_gameState == GAME_OVER) {
+        std::cout << "Game Over" << std::endl;
+        GL::defaultFramebuffer.clear(GL::FramebufferClear::Color);
+
+        _imgui.newFrame();
+
+        ImGui::SetNextWindowSize(ImVec2(500, 100), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Fin de partie", &_showAnotherWindow);
+        if (objectState->getWinner() == player) {
+            ImGui::Text("Victoire");
+            std::cout << "Victoire" << std::endl;
+        } else {
+            ImGui::Text("Defaite");
+        }
+        // add a button that just does exit()
+        if (ImGui::Button("Exit", ImVec2(100, 30))) {
+            exit();
+        };
+        ImGui::End();
+
+        /* Update application cursor */
+        _imgui.updateApplicationCursor(*this);
+
+        /* Set appropriate states. If you only draw ImGui, it is sufficient to
+           just enable blending and scissor test in the constructor. */
+        GL::Renderer::enable(GL::Renderer::Feature::Blending);
+        GL::Renderer::enable(GL::Renderer::Feature::ScissorTest);
+        GL::Renderer::disable(GL::Renderer::Feature::FaceCulling);
+        GL::Renderer::disable(GL::Renderer::Feature::DepthTest);
+
+        _imgui.drawFrame();
+        swapBuffers();
+        redraw();
+    }
     GL::Context::makeCurrent(&GL::Context::current());
     GL::defaultFramebuffer.clear(GL::FramebufferClear::Color | GL::FramebufferClear::Depth);
 
     auto packet = objectState->getWorld();
     auto winner = objectState->getWinner();
     if (winner!=-1) {
-        std::cout << "Player " << objectState->getWinner() << " wins!" << std::endl;
-        exit(0);
+        _gameState = GAME_OVER;
     }
 
     entt::registry _newRegistry;
@@ -100,6 +158,10 @@ void MagnumBootstrap::drawEvent() {
     }
 }
 void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
+    if (_gameState == GAME_OVER && _imgui.handleKeyPressEvent(event)) {
+        event.setAccepted();
+        return;
+    }
     static const std::unordered_map<Key, std::function<void()>> keyActions{
     {Key::W, [this]() { inputState->addInputAction(InputAction::FORWARD); }},
     {Key::S, [this]() { inputState->addInputAction(InputAction::BACKWARD); }},
@@ -136,6 +198,7 @@ void MagnumBootstrap::keyPressEvent(KeyEvent& event) {
 }
 
 void MagnumBootstrap::pointerPressEvent(PointerEvent& event) {
+    if (_gameState == GAME_OVER && _imgui.handlePointerPressEvent(event)) return;
     if(!event.isPrimary() || !(event.pointer() & (Pointer::MouseLeft))) return;
 
     const Vector2 position = event.position() * Vector2{framebufferSize()} / Vector2{windowSize()};

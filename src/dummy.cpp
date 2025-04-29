@@ -8,8 +8,6 @@ using namespace Math::Literals;
     ImGuiExample::ImGuiExample(const Arguments& arguments) : Platform::Application{arguments,
         Configuration{}.setTitle("Magnum ImGui Example")
                        .setWindowFlags(Configuration::WindowFlag::Resizable)} {
-        // Enable text input
-        startTextInput();
 
         _imgui = ImGuiIntegration::Context(Vector2{windowSize()}/dpiScaling(),
             windowSize(), framebufferSize());
@@ -17,10 +15,6 @@ using namespace Math::Literals;
         loadCosmetics();
 
 
-        GL::Renderer::setBlendEquation(GL::Renderer::BlendEquation::Add,
-            GL::Renderer::BlendEquation::Add);
-        GL::Renderer::setBlendFunction(GL::Renderer::BlendFunction::SourceAlpha,
-            GL::Renderer::BlendFunction::OneMinusSourceAlpha);
 
     }
 
